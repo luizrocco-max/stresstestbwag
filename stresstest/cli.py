@@ -75,6 +75,18 @@ def cmd_rodar(args):
     print(f"\nRelatório salvo em: {saida}")
 
 
+def cmd_exportar(args):
+    from . import painel_web
+    dados = painel_web.dados_universo(args.universo, janela_meses=args.janela, inicio_dados=args.inicio,
+                                      cenarios_yaml=args.cenarios)
+    saida = Path(args.saida) if args.saida else SAIDA / "painel.html"
+    painel_web.gerar_html(dados, saida)
+    if args.json:
+        import json
+        Path(args.json).write_text(json.dumps(dados, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"Painel interativo salvo em: {saida} ({len(dados['fundos'])} fundos, {len(dados['cenarios'])} cenários)")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="stresstest", description="Stress test de fundos (CVM + fatores de mercado)")
     ap.add_argument("-v", "--verbose", action="store_true", help="log detalhado")
@@ -111,6 +123,15 @@ def main(argv=None):
     r.add_argument("--metodo", choices=["melhor", "modelo", "historico"], default="melhor")
     r.add_argument("--fatores", default=None, help="fatores separados por vírgula")
     r.set_defaults(func=cmd_rodar)
+
+    e = sub.add_parser("exportar", help="gera o painel interativo (HTML) a partir de um universo de fundos")
+    e.add_argument("universo", nargs="?", default=str(Path(__file__).resolve().parent.parent / "carteiras" / "universo.yaml"))
+    e.add_argument("--saida", default=None, help="arquivo .html (padrão: saida/painel.html)")
+    e.add_argument("--json", default=None, help="também grava os dados em JSON")
+    e.add_argument("--cenarios", default=None)
+    e.add_argument("--janela", type=int, default=JANELA_PADRAO_MESES)
+    e.add_argument("--inicio", default=INICIO_PADRAO)
+    e.set_defaults(func=cmd_exportar)
 
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,

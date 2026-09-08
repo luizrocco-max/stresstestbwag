@@ -76,6 +76,14 @@ fica em cache e só os meses recentes são atualizados. Para uma rodada rápida 
 `--inicio 2019-01` (perde os cenários anteriores a essa data no modo histórico direto, mas o
 modelo de fatores continua cobrindo todos).
 
+## Painel interativo
+
+`python -m stresstest exportar carteiras/universo.yaml` calcula betas, estatísticas e retornos
+históricos de todos os fundos de `carteiras/universo.yaml` e gera `saida/painel.html`: uma página
+única, sem servidor, em que você monta a carteira (fundos, pesos e caixa), vê o P&L por cenário,
+clica num cenário para ver a quebra por fundo e por fator, e cria cenários próprios com sliders
+de bolsa, S&P, dólar e juros. Para incluir um fundo novo, acrescente o CNPJ ao YAML e exporte de novo.
+
 ## Testes
 
 ```bash
@@ -111,7 +119,9 @@ stresstest/
   cenarios.py        leitura do YAML de cenários
   motor.py           carteira, P&L por fundo/cenário, agregação
   relatorio.py       resumo no terminal e Excel
+  painel_web.py      exporta o painel interativo (usa painel_template.html)
   cli.py             comandos buscar / rodar / cenarios / fatores / atualizar
 cenarios/cenarios.yaml   biblioteca de cenários (edite à vontade)
 carteiras/exemplo.yaml   carteira de exemplo
+carteiras/universo.yaml  universo de fundos do painel interativo
 ```
