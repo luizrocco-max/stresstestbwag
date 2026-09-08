@@ -1,0 +1,29 @@
+# Carteira de exemplo. Pesos em % (somam 100 com o caixa).
+# Ache o CNPJ com: python -m stresstest buscar "nome do fundo"
+nome: Carteira Exemplo BWAG
+# data_base: 2026-09-04   # opcional: ignora dados após esta data
+
+fundos:
+  - cnpj: 12.798.221/0001-36
+    nome: SPX Nimitz Master
+    peso: 12
+  - cnpj: 07.455.507/0001-89
+    nome: Verde Master
+    peso: 12
+  - cnpj: 26.218.403/0001-03
+    nome: Kinea Atlas
+    peso: 8
+  - cnpj: 73.232.530/0001-39
+    nome: Dynamo Cougar
+    peso: 10
+  - cnpj: 11.188.572/0001-62
+    nome: Atmos Master
+    peso: 8
+  - cnpj: 20.146.318/0001-92
+    nome: Capitânia Premium (crédito)
+    peso: 15
+  - cnpj: 11.060.913/0001-10
+    nome: Caixa IMA-B 5
+    peso: 15
+
+caixa_cdi: 20

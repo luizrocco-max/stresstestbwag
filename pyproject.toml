@@ -1,0 +1,18 @@
+[project]
+name = "stresstest-bwag"
+version = "0.1.0"
+description = "Stress test de fundos de investimento a partir de cotas CVM e fatores de mercado"
+requires-python = ">=3.10"
+dependencies = [
+  "pandas>=2.0", "numpy>=1.24", "statsmodels>=0.14", "pyarrow>=14",
+  "openpyxl>=3.1", "requests>=2.31", "pyyaml>=6",
+]
+
+[project.scripts]
+stresstest = "stresstest.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["stresstest*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
