@@ -18,7 +18,7 @@
   --gain: #2a78d6;
   --loss-soft: #f6dcdc;
   --gain-soft: #dbe8fa;
-  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7;
   --shadow: 0 1px 2px rgba(22,28,38,.06), 0 4px 16px rgba(22,28,38,.05);
 }
 @media (prefers-color-scheme: dark) {
@@ -28,7 +28,7 @@
     --ink: #e7ebf1; --ink-2: #b1bac6; --ink-3: #7f8b99;
     --accent: #8fb0e8; --accent-ink: #0f1319; --accent-soft: #223251;
     --loss: #e66767; --gain: #3987e5; --loss-soft: #3a2223; --gain-soft: #1d2d45;
-    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9;
     --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
   }
 }
@@ -38,7 +38,7 @@
   --ink: #e7ebf1; --ink-2: #b1bac6; --ink-3: #7f8b99;
   --accent: #8fb0e8; --accent-ink: #0f1319; --accent-soft: #223251;
   --loss: #e66767; --gain: #3987e5; --loss-soft: #3a2223; --gain-soft: #1d2d45;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9;
   --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
 }
 * { box-sizing: border-box; }
@@ -261,8 +261,8 @@ footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 
   const D = JSON.parse(document.getElementById('dados').textContent);
   const FAT = D.fatores.map(f => f.id);
   const FMETA = Object.fromEntries(D.fatores.map(f => [f.id, f]));
-  const FCOR = { IBOV: 'var(--s1)', SPX: 'var(--s2)', USDBRL: 'var(--s3)', JURO_PRE: 'var(--s4)', JURO_REAL: 'var(--s5)', CDI: 'var(--s6)' };
-  const FNOME = { IBOV: 'Ibovespa', SPX: 'S&P 500', USDBRL: 'Dólar', JURO_PRE: 'Juro pré 2a', JURO_REAL: 'Juro real 5a', CDI: 'CDI' };
+  const FCOR = { IBOV: 'var(--s1)', SPX: 'var(--s2)', USDBRL: 'var(--s3)', JURO_PRE: 'var(--s4)', JURO_REAL: 'var(--s5)', SPREAD_CRED: 'var(--s7)', SMLL: 'var(--s1)', CDI: 'var(--s6)' };
+  const FNOME = { IBOV: 'Ibovespa', SPX: 'S&P 500', USDBRL: 'Dólar', JURO_PRE: 'Juro pré 2a', JURO_REAL: 'Juro real 5a', SPREAD_CRED: 'Spread crédito', SMLL: 'Small caps', CDI: 'CDI' };
   const byCnpj = Object.fromEntries(D.fundos.map(f => [f.cnpj, f]));
   const pct = new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'exceptZero' });
   const pct0 = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 0 });
@@ -276,7 +276,7 @@ footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 
   let metodo = 'melhor';
   let carteira = { fundos: [], caixa: 0 };  // fundos: [{cnpj, peso}]
   let selecionado = null;
-  let custom = { IBOV: -20, SPX: -10, USDBRL: 10, JURO_PRE: 1.5, JURO_REAL: 1.0 };
+  let custom = { IBOV: -20, SPX: -10, USDBRL: 10, JURO_PRE: 1.5, JURO_REAL: 1.0, SPREAD_CRED: 0.5, SMLL: -25 };
   let ordem = { k: 'grupo', asc: true };
 
   function carregarEstado() {
@@ -323,7 +323,7 @@ footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 
     return { pl: faltando > 0.999 ? null : pl, cobertura, faltando, linhas, contrib };
   }
   function cenCustom() {
-    const ch = {}; for (const k of FAT) ch[k] = FMETA[k].tipo === 'retorno' ? custom[k] / 100 : custom[k];
+    const ch = {}; for (const k of FAT) ch[k] = FMETA[k].tipo === 'retorno' ? (custom[k] || 0) / 100 : (custom[k] || 0);
     return { id: '_custom', nome: 'Cenário próprio', rotulo: 'Cenário próprio', tipo: 'hipotetico', choques: ch, cdi: Math.pow(1 + D.cdi_dia, D.horizonte_dias) - 1, n_dias: D.horizonte_dias };
   }
   function resultados() {
@@ -431,8 +431,9 @@ footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 
   // ---------------------------------------------------------------- detalhe
   function chipsChoques(c) {
     return FAT.map(k => {
-      const v = c.choques[k] || 0, ret = FMETA[k].tipo === 'retorno';
-      return `<span class="chip"><i class="dot" style="background:${FCOR[k]};width:8px;height:8px;border-radius:2px"></i>${FNOME[k]} <span class="num ${sgn(v)}">${ret ? pct.format(v) : dec.format(v) + ' p.p.'}</span></span>`;
+      const raw = c.choques[k], v = raw || 0, ret = FMETA[k].tipo === 'retorno';
+      const semSerie = c.tipo === 'historico' && (raw === null || raw === undefined);
+      return `<span class="chip" ${semSerie ? 'title="Sem série do fator nesta janela: contribuição tratada como 0 (P&amp;L estimado)"' : ''}><i class="dot" style="background:${FCOR[k]};width:8px;height:8px;border-radius:2px"></i>${FNOME[k]} <span class="num ${sgn(v)}">${semSerie ? 'sem série' : ret ? pct.format(v) : dec.format(v) + ' p.p.'}</span></span>`;
     }).join('') + `<span class="chip">CDI <span class="num">${pct.format(c.cdi)}</span></span>`;
   }
   function tabelaLinhas(tb, linhas, comFonte) {
@@ -463,7 +464,7 @@ footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 
   }
 
   // ---------------------------------------------------------------- cenário próprio
-  const LIM = { IBOV: [-50, 30, 1, '%'], SPX: [-40, 30, 1, '%'], USDBRL: [-20, 40, 1, '%'], JURO_PRE: [-4, 5, 0.1, ' p.p.'], JURO_REAL: [-3, 4, 0.1, ' p.p.'] };
+  const LIM = { IBOV: [-50, 30, 1, '%'], SPX: [-40, 30, 1, '%'], USDBRL: [-20, 40, 1, '%'], JURO_PRE: [-4, 5, 0.1, ' p.p.'], JURO_REAL: [-3, 4, 0.1, ' p.p.'], SPREAD_CRED: [-2, 4, 0.1, ' p.p.'], SMLL: [-50, 30, 1, '%'] };
   const PRESETS = [
     ['Risk-off Brasil', { IBOV: -25, SPX: -5, USDBRL: 15, JURO_PRE: 2.5, JURO_REAL: 1.5 }],
     ['Só bolsa −20%', { IBOV: -20, SPX: 0, USDBRL: 0, JURO_PRE: 0, JURO_REAL: 0 }],
@@ -475,6 +476,7 @@ footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 
   function renderSliders() {
     const el = document.getElementById('sliders'); el.innerHTML = '';
     for (const k of FAT) {
+      if (!LIM[k]) continue;
       const [mn, mx, st, un] = LIM[k];
       const d = document.createElement('div'); d.className = 'sl';
       d.innerHTML = `<label><span><i class="dot" style="background:${FCOR[k]};display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px"></i>${FNOME[k]}</span><span class="num" id="sv-${k}"></span></label><input type="range" min="${mn}" max="${mx}" step="${st}" value="${custom[k]}" id="sl-${k}" aria-label="${FNOME[k]}">`;
@@ -489,7 +491,7 @@ footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 
     }
   }
   function renderCustom() {
-    for (const k of FAT) { const un = LIM[k][3]; document.getElementById('sv-' + k).textContent = (custom[k] > 0 ? '+' : '') + custom[k] + un; }
+    for (const k of FAT) { if (!LIM[k]) continue; const un = LIM[k][3]; document.getElementById('sv-' + k).textContent = ((custom[k] || 0) > 0 ? '+' : '') + (custom[k] || 0) + un; }
     const c = cenCustom(), r = plCarteira(c, false);
     const ex = r.pl === null ? null : (1 + r.pl) / (1 + c.cdi) - 1;
     const t = document.getElementById('c-tot'); t.textContent = r.pl === null ? '—' : pct.format(r.pl); t.className = 'kpi-v ' + sgn(r.pl ?? 0);
@@ -498,7 +500,7 @@ footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 
     document.getElementById('c-pior').textContent = pior ? `${pior.f.nome} (${pct.format(pior.usado)})` : '—';
     tabelaLinhas(document.querySelector('#c-tab tbody'), r.linhas, false);
     const k3 = document.getElementById('k3'); k3.textContent = r.pl === null ? '—' : pct.format(r.pl); k3.className = 'kpi-v ' + sgn(r.pl ?? 0);
-    document.getElementById('k3s').textContent = FAT.map(k => `${FNOME[k]} ${(custom[k] > 0 ? '+' : '') + custom[k] + LIM[k][3].trim()}`).join(' · ');
+    document.getElementById('k3s').textContent = FAT.filter(k => LIM[k]).map(k => `${FNOME[k]} ${((custom[k] || 0) > 0 ? '+' : '') + (custom[k] || 0) + LIM[k][3].trim()}`).join(' · ');
   }
 
   // ---------------------------------------------------------------- universo

@@ -135,3 +135,88 @@ def test_api_stress_carteira(painel_sintetico, monkeypatch):
     assert res["resultado_carteira"][0]["pl_carteira"] == pytest.approx(0.5 * -0.20 + 0.0085, abs=0.005)
     assert res["betas"][0]["IBOV"] == pytest.approx(1.0, abs=0.05)
     assert res["carteira"]["posicoes"][-1]["tipo"] == "cdi"
+
+
+# ----------------------------------------------------------------------------- SPREAD_CRED
+def _painel_real_ou_skip():
+    from stresstest.config import CACHE
+    if not (CACHE / "cvm" / "inf_diario").exists():
+        pytest.skip("cache de dados não disponível (teste precisa dos dados reais)")
+    return fatores.painel("2007-06-01")
+
+
+def test_spread_declarado_fora_do_padrao():
+    assert fatores.FATORES["SPREAD_CRED"]["tipo"] == "taxa"
+    assert "SPREAD_CRED" not in fatores.FATORES_PADRAO
+    assert fatores.FATORES_PADRAO == ["IBOV", "SPX", "USDBRL", "JURO_PRE", "JURO_REAL"]
+
+
+def test_painel_paridade_colunas_antigas():
+    """(i) o painel com a coluna nova mantém as colunas antigas valor a valor."""
+    p = _painel_real_ou_skip()
+    antigas = ["IBOV", "SMLL", "SPX", "USDBRL", "JURO_PRE", "JURO_REAL", "CDI"]
+    assert "SPREAD_CRED" in p.columns and set(antigas) <= set(p.columns)
+    sem = p[antigas]
+    com = p[antigas + ["SPREAD_CRED"]][antigas]
+    pd.testing.assert_frame_equal(sem, com)
+    # NaN antes do início da série (ago/2017), nada de zero
+    assert p.loc[:"2017-07-31", "SPREAD_CRED"].isna().all()
+    assert p["SPREAD_CRED"].notna().sum() > 100
+
+
+def test_rodar_paridade_com_golden():
+    """(ii) betas e choques com os fatores padrão idênticos aos de antes da mudança."""
+    import json
+    from pathlib import Path
+    _painel_real_ou_skip()
+    g = json.loads((Path(__file__).parent / "golden_exemplo.json").read_text(encoding="utf-8"))
+    cart = motor.carregar_carteira(Path(__file__).parent.parent / "carteiras" / "exemplo.yaml")
+    cart.data_base = g["data_base"]
+    res = motor.rodar(cart, cenarios.carregar())
+    assert res.fatores == g["fatores"]
+    for r in res.betas.to_dict("records"):
+        esperado = g["betas"][r["cnpj"]]
+        for f in g["fatores"]:
+            assert r[f] == pytest.approx(esperado[f], abs=1e-9), (r["cnpj"], f)
+        assert r["r2"] == pytest.approx(esperado["r2"], abs=1e-9)
+    # cenários novos (ex.: credito_+200) podem existir; os antigos têm que bater valor a valor
+    assert set(g["choques"]) <= set(res.choques.index)
+    for cid in g["choques"]:
+        for f in g["fatores"] + ["CDI"]:
+            assert res.choques.loc[cid, f] == pytest.approx(g["choques"][cid][f], abs=1e-9), (cid, f)
+        assert res.carteira_cenarios.loc[cid, "pl_carteira"] == pytest.approx(g["pl_carteira"][cid], abs=1e-9), cid
+
+
+def test_choque_spread_janelas():
+    """(iii) NaN antes da série; abertura positiva na janela da Americanas."""
+    p = _painel_real_ou_skip()
+    ch = fatores.choque_janela(p, "2008-09-12", "2008-10-27", ["IBOV", "SPREAD_CRED"])
+    assert np.isnan(ch["SPREAD_CRED"]) and not np.isnan(ch["IBOV"])
+    ch = fatores.choque_janela(p, "2023-01-11", "2023-03-23", ["SPREAD_CRED"])
+    assert 0.3 < ch["SPREAD_CRED"] < 3.0
+    ch = fatores.choque_janela(p, "2020-02-19", "2020-03-23", ["SPREAD_CRED"])
+    assert ch["SPREAD_CRED"] > 0
+
+
+def test_choque_janela_nan_no_inicio(painel_sintetico):
+    p = painel_sintetico.copy()
+    p["SPREAD_CRED"] = np.nan
+    p.loc[p.index[400]:, "SPREAD_CRED"] = 0.01
+    assert np.isnan(fatores.choque_janela(p, p.index[300], p.index[450], ["SPREAD_CRED"])["SPREAD_CRED"])
+    assert fatores.choque_janela(p, p.index[401], p.index[450], ["SPREAD_CRED"])["SPREAD_CRED"] == pytest.approx(0.49)
+
+
+def test_motor_fator_sem_dado_vira_zero_no_pl(painel_sintetico, monkeypatch):
+    monkeypatch.setattr(cvm, "info", lambda c: {"nome": "F", "gestor": "G", "classe_cvm": "", "classe_anbima": "", "situacao": ""})
+    p = painel_sintetico.copy()
+    p["SPREAD_CRED"] = np.nan
+    p.loc[p.index[500]:, "SPREAD_CRED"] = 0.0
+    cotas = pd.DataFrame({"11111111000111": cotas_de(p, beta_ibov=1.0, beta_pre=0.0, seed=2)})
+    cart = motor.Carteira(nome="T", posicoes=[motor.Posicao("11111111000111", "A", 1.0)])
+    lista = [cenarios.Cenario(id="h", nome="Antes", tipo="historico", inicio=str(p.index[100].date()), fim=str(p.index[120].date()))]
+    fat = fatores.FATORES_PADRAO + ["SPREAD_CRED"]
+    res = motor.rodar(cart, lista, fatores=fat, painel=p, cotas=cotas, metodo="modelo")
+    assert np.isnan(res.choques.loc["h", "SPREAD_CRED"])
+    assert res.carteira_cenarios.loc["h", "fatores_sem_dado"] == "SPREAD_CRED"
+    assert not np.isnan(res.carteira_cenarios.loc["h", "pl_carteira"])
+    assert any("SPREAD_CRED" in a for a in res.avisos)

@@ -145,6 +145,24 @@ CLI num job e sirva o HTML/JSON estático.
   (uma coluna a mais no painel e uma entrada em `FATORES`).
 - É simulação quantitativa, não recomendação de investimento; o rodapé do painel já diz isso.
 
+## Fator opcional `SPREAD_CRED` (spread de crédito privado)
+
+Declarado em `FATORES` mas fora de `FATORES_PADRAO`: os betas e choques dos fatores padrão não
+mudam quando ele não é pedido. Para usá-lo: `stress_carteira(..., fatores=FATORES_PADRAO + ["SPREAD_CRED"])`
+ou `--fatores IBOV,SPX,USDBRL,JURO_PRE,JURO_REAL,SPREAD_CRED` na CLI.
+
+| Item | Valor |
+|---|---|
+| Fonte | IDEX-CDI **ex-distressed** da JGP (Idex Analytics), JSON público do gráfico "Evolução dos spreads de carrego", via o proxy do próprio site (`idexanalytics.com.br/wp-json/idex/v1/proxy`), sem chave |
+| Série | spread médio ponderado das debêntures %CDI/DI+ sobre o CDI, em % a.a.; **média mensal**, datada no dia 1º do mês |
+| Início | ago/2017 (a série "geral" começa em jan/2019 e é contaminada por emissores em default) |
+| Coluna do painel | nível preenchido para frente dentro do mês; `diff` diário em p.p. (só varia na troca de mês); NaN antes de ago/2017 |
+| Conversão | nenhuma: o spread já vem em p.p. (não foi preciso o caminho IDA-DI/duration) |
+| Choque | +1 p.p. de spread em papel de duration D ≈ -D% no preço, mesma regra dos juros |
+| Sem série na janela | `choques` traz NaN, o P&L usa 0 e `resultado_carteira[*].fatores_sem_dado` lista o fator |
+| Regressão | aceita o fator, mas com série mensal o beta diário é pouco confiável; o aviso vem em `avisos` |
+| Fonte fora do ar | coluna NaN com warning no log; o painel não cai (cache de 20 h, reaproveitado se a fonte falhar) |
+
 ## Cenários próprios
 
 YAML com a mesma estrutura de `stresstest/cenarios.yaml`:

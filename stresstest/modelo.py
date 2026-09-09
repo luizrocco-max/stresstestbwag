@@ -63,19 +63,31 @@ def estimar(ret: pd.Series, painel: pd.DataFrame, fatores: list[str],
         avisos.append(f"histórico curto: betas estimados com só {len(dados)} pregões "
                       f"(desde {dados.index.min().date()})")
     y = dados["r"] - dados["CDI"]
-    X = sm.add_constant(dados[fatores])
+    # fator sem variação na janela (ex.: SPREAD_CRED todo zero) deixaria a matriz singular:
+    # sai da regressão com beta 0 e aviso
+    constantes = [f for f in fatores if float(dados[f].std()) == 0.0]
+    usados = [f for f in fatores if f not in constantes]
+    if constantes:
+        avisos.append(f"fator(es) {constantes} sem variação na janela: beta fixado em 0")
+    X = sm.add_constant(dados[usados])
     res = sm.OLS(y, X).fit(cov_type="HAC", cov_kwds={"maxlags": 5})
-    betas = res.params.drop("const")
+    betas = res.params.drop("const").reindex(fatores).fillna(0.0)
+    tstats = res.tvalues.drop("const").reindex(fatores)
     if res.rsquared < 0.10:
         avisos.append(f"R² baixo ({res.rsquared:.0%}): o modelo de fatores explica pouco; "
                       "prefira o histórico direto quando existir")
+    for f in usados:  # fator com série de baixa frequência (ex.: SPREAD_CRED mensal)
+        variacoes = int((dados[f].abs() > 1e-12).sum())
+        if variacoes < 0.2 * len(dados):
+            avisos.append(f"fator {f} varia em só {variacoes} de {len(dados)} pregões da janela: "
+                          "beta pouco confiável (série de baixa frequência)")
     # fundo com cota parada (ex.: marcação mensal) -> muitos zeros
     zeros = float((y.abs() < 1e-9).mean())
     if zeros > 0.30:
         avisos.append(f"{zeros:.0%} dos dias com retorno zero: cota pouco atualizada, betas subestimados")
     return Modelo(cnpj=cnpj, fatores=fatores, betas=betas, alpha_diario=float(res.params["const"]),
                   r2=float(res.rsquared), r2_ajustado=float(res.rsquared_adj),
-                  tstats=res.tvalues.drop("const"), vol_residual_diaria=float(np.sqrt(res.scale)),
+                  tstats=tstats, vol_residual_diaria=float(np.sqrt(res.scale)),
                   n_obs=int(res.nobs), inicio=dados.index.min(), fim=fim, avisos=avisos)
 
 

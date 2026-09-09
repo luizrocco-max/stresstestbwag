@@ -18,6 +18,7 @@ Ibovespa e S&P 500 do Yahoo Finance e as curvas do Tesouro Direto.
    | `USDBRL` | Dólar PTAX | % |
    | `JURO_PRE` | Taxa do Tesouro Prefixado com vencimento ~2 anos | pontos percentuais |
    | `JURO_REAL` | Taxa do Tesouro IPCA+ com vencimento ~5 anos | pontos percentuais |
+   | `SPREAD_CRED` | Spread de crédito privado sobre o CDI (IDEX-CDI ex-distressed, JGP; **mensal**, desde ago/2017; fora do padrão, entra só com `--fatores ...,SPREAD_CRED`) | pontos percentuais |
 
 3. **Betas**: para cada fundo, regressão (OLS, erros HAC) do excesso de retorno diário sobre o CDI
    contra os fatores, na janela mais recente (padrão 24 meses). O beta de um fator de taxa é lido
@@ -101,6 +102,13 @@ python -m pytest -q
   correlação; para janelas longas (2021, 2022) a aproximação linear piora.
 - Fundos exclusivos/fechados e fundos que trocaram de CNPJ na adaptação à RCVM 175 (raro) podem ter
   série incompleta; o relatório avisa quando a série não cobre um cenário.
+- **`SPREAD_CRED` é mensal**: a JGP só publica de graça a média mensal do spread do IDEX-CDI (a série
+  diária exige assinatura). A coluna diária do painel só varia na virada do mês, então serve para
+  choques de cenário (soma das variações na janela) e para o proxy de debêntures por duration, mas
+  **não** para regressão de betas diários: o motor avisa "beta pouco confiável" quando o fator é
+  incluído. Janelas dentro de um mesmo mês (ex.: tarifas abr/2025) dão variação 0; janelas antes de
+  ago/2017 dão NaN (o P&L trata como 0 e o resumo marca `fatores_sem_dado`). Usa-se a série
+  ex-distressed porque a "geral" é dominada por emissores em default (jan/2023 marca 54% a.a.).
 - As taxas do Tesouro Direto são as "da manhã" (refletem o fechamento do dia anterior); o painel já as
   desloca um pregão para trás, então o último dia do painel não tem variação de juros.
 - Dados de mercado são de fontes públicas gratuitas, sujeitas a indisponibilidade. O cache local em

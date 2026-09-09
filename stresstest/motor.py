@@ -159,11 +159,14 @@ def rodar(carteira: Carteira, lista_cenarios: list[mod_cenarios.Cenario] | None 
 
     # ----------------------------------------------------------------- choques
     choques_df = mod_cenarios.tabela_choques(lista_cenarios, painel, fatores)
+    sem_dado: dict[str, list[str]] = {}
     for c in lista_cenarios:
         faltando = [f for f in fatores if pd.isna(choques_df.loc[c.id, f])]
         if faltando:
-            avisos.append(f"cenário {c.nome}: sem dados dos fatores {faltando} na janela; tratados como 0")
-            choques_df.loc[c.id, faltando] = 0.0
+            sem_dado[c.id] = faltando
+            avisos.append(f"cenário {c.nome}: sem série dos fatores {faltando} na janela; "
+                          "contribuição deles tratada como 0 (P&L estimado)")
+    choques_pl = choques_df[fatores].fillna(0.0)  # a tabela de choques mantém NaN; o P&L usa 0
 
     # ----------------------------------------------------------------- fundo x cenário
     linhas = []
@@ -179,7 +182,7 @@ def rodar(carteira: Carteira, lista_cenarios: list[mod_cenarios.Cenario] | None 
                 continue
             m = modelos.get(pos.cnpj)
             if m is not None:
-                excesso = float(sum(m.betas[f] * ch[f] for f in fatores))
+                excesso = float(sum(m.betas[f] * choques_pl.loc[c.id, f] for f in fatores))
                 modelo_total = (1 + excesso) * (1 + cdi) - 1
             else:
                 excesso, modelo_total = np.nan, np.nan
@@ -210,13 +213,14 @@ def rodar(carteira: Carteira, lista_cenarios: list[mod_cenarios.Cenario] | None 
         linhas_c.append({"cenario_id": c.id, "cenario": c.rotulo, "tipo": c.tipo, "n_dias": int(choques_df.loc[c.id, "n_dias"]),
                          "pl_carteira": usado, "pl_modelo": modelo_tot, "cdi_periodo": float(choques_df.loc[c.id, "CDI"]),
                          "peso_com_historico_real": peso_hist,
+                         "fatores_sem_dado": ", ".join(sem_dado.get(c.id, [])),
                          "pior_posicao": pior_fundo["nome"] if pior_fundo is not None else "",
                          "pl_pior_posicao": float(pior_fundo["usado"]) if pior_fundo is not None else np.nan,
                          "descricao": c.descricao})
         contrib = {"cenario_id": c.id, "cenario": c.rotulo}
         for f in fatores:
             beta_cart = sum(pesos[k] * m.betas[f] for k, m in modelos.items() if m is not None)
-            contrib[f] = float(beta_cart * choques_df.loc[c.id, f])
+            contrib[f] = float(beta_cart * choques_pl.loc[c.id, f])
         contrib["CDI"] = float(choques_df.loc[c.id, "CDI"])
         linhas_contrib.append(contrib)
     carteira_df = pd.DataFrame(linhas_c).set_index("cenario_id")

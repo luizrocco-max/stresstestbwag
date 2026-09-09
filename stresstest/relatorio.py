@@ -92,7 +92,7 @@ def excel(res: Resultado, caminho: str | Path) -> Path:
         # Resumo
         resumo = res.carteira_cenarios.reset_index(drop=True)[
             ["cenario", "tipo", "n_dias", "pl_carteira", "pl_modelo", "cdi_periodo", "peso_com_historico_real",
-             "pior_posicao", "pl_pior_posicao", "descricao"]]
+             "fatores_sem_dado", "pior_posicao", "pl_pior_posicao", "descricao"]]
         resumo.to_excel(xw, sheet_name="Resumo", index=False)
         _formatar_aba(xw.sheets["Resumo"], {"pl_carteira", "pl_modelo", "cdi_periodo", "peso_com_historico_real", "pl_pior_posicao"})
 

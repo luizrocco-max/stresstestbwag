@@ -1,7 +1,9 @@
 """Painel diário de fatores de risco.
 
 Fatores de RETORNO (choque em %): IBOV, SMLL, SPX (em USD), USDBRL (PTAX).
-Fatores de TAXA (choque em pontos percentuais): JURO_PRE (~2 anos), JURO_REAL (~5 anos).
+Fatores de TAXA (choque em pontos percentuais): JURO_PRE (~2 anos), JURO_REAL (~5 anos) e
+SPREAD_CRED (spread de crédito privado sobre o CDI, IDEX-CDI ex-distressed da JGP; série MENSAL
+desde ago/2017 — a coluna diária só varia na troca de mês; NaN antes do início; fora do padrão).
 Coluna CDI: taxa diária (fração) usada como taxa livre de risco.
 
 O calendário do painel é o de pregões do Ibovespa. Séries de outros calendários
@@ -17,7 +19,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from .dados import bcb, tesouro, yahoo
+from .dados import bcb, idex, tesouro, yahoo
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +30,9 @@ FATORES = {
     "USDBRL": dict(tipo="retorno", nome="Dólar PTAX (BRL por USD)", unidade="%"),
     "JURO_PRE": dict(tipo="taxa", nome="Juro pré ~2 anos (Tesouro Prefixado)", unidade="p.p."),
     "JURO_REAL": dict(tipo="taxa", nome="Juro real ~5 anos (Tesouro IPCA+)", unidade="p.p."),
+    "SPREAD_CRED": dict(tipo="taxa", nome="Spread de crédito privado sobre o CDI", unidade="p.p."),
 }
+# SPREAD_CRED fica fora do padrão de propósito: só entra quando pedido (fatores=[..., "SPREAD_CRED"]).
 FATORES_PADRAO = ["IBOV", "SPX", "USDBRL", "JURO_PRE", "JURO_REAL"]
 PRAZO_PRE_ANOS = 2.0
 PRAZO_REAL_ANOS = 5.0
@@ -69,6 +73,13 @@ def niveis(inicio: str = "2004-01-01") -> pd.DataFrame:
     df["JURO_REAL"] = _no_calendario(real["taxa"], cal).shift(-1)
     df["_JURO_PRE_SINT"] = _no_calendario(pre["dtaxa"].cumsum(), cal).shift(-1)
     df["_JURO_REAL_SINT"] = _no_calendario(real["dtaxa"].cumsum(), cal).shift(-1)
+    # Spread de crédito (IDEX-CDI, mensal): nível em % a.a. preenchido para frente dentro do mês;
+    # NaN antes do início da série. Fonte fora do ar => coluna NaN com aviso, sem derrubar o painel.
+    try:
+        df["SPREAD_CRED"] = _no_calendario(idex.spread_mensal(), cal)
+    except Exception as e:  # noqa: BLE001
+        log.warning("SPREAD_CRED indisponível (%s); coluna fica NaN", e)
+        df["SPREAD_CRED"] = np.nan
     return df
 
 
@@ -80,6 +91,7 @@ def painel(inicio: str = "2004-01-01") -> pd.DataFrame:
         p[f] = nv[f].pct_change()
     p["JURO_PRE"] = nv["_JURO_PRE_SINT"].diff()
     p["JURO_REAL"] = nv["_JURO_REAL_SINT"].diff()
+    p["SPREAD_CRED"] = nv["SPREAD_CRED"].diff()
     p["CDI"] = nv["CDI"]
     p = p.iloc[1:]
     p = p.replace([np.inf, -np.inf], np.nan)
@@ -97,7 +109,8 @@ def choque_janela(painel_: pd.DataFrame, inicio, fim, fatores: list[str] | None 
     out = {}
     for f in fatores:
         col = jan[f].dropna()
-        if col.empty:
+        # sem dado no início da janela (série ainda não existia) => choque indefinido, nunca zero
+        if col.empty or (f in jan.columns and len(jan) and pd.isna(jan[f].iloc[0])):
             out[f] = np.nan
         elif FATORES[f]["tipo"] == "retorno":
             out[f] = float((1 + col).prod() - 1)

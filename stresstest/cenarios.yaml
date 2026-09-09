@@ -8,7 +8,8 @@
 #   fatores de taxa em pontos percentuais (JURO_PRE: 2 => +200 bps).
 #   Fatores omitidos recebem 0. horizonte_dias só serve para acumular o CDI.
 #
-# Fatores disponíveis: IBOV, SMLL, SPX, USDBRL, JURO_PRE, JURO_REAL
+# Fatores disponíveis: IBOV, SMLL, SPX, USDBRL, JURO_PRE, JURO_REAL, SPREAD_CRED
+#   SPREAD_CRED (spread de crédito privado, p.p.) só entra no P&L quando pedido em `fatores`.
 
 historicos:
   - id: crise_2008
@@ -100,13 +101,18 @@ hipoteticos:
 
   - id: risk_off_brasil
     nome: Risk-off Brasil combinado
-    choques: {IBOV: -25, SMLL: -30, USDBRL: 15, JURO_PRE: 2.5, JURO_REAL: 1.5, SPX: -5}
+    choques: {IBOV: -25, SMLL: -30, USDBRL: 15, JURO_PRE: 2.5, JURO_REAL: 1.5, SPX: -5, SPREAD_CRED: 1.5}
     descricao: "Choque doméstico completo (fiscal/político): bolsa, câmbio e curva ao mesmo tempo."
 
   - id: risk_off_global
     nome: Risk-off global
-    choques: {SPX: -25, IBOV: -20, SMLL: -25, USDBRL: 10, JURO_PRE: 1.0, JURO_REAL: 0.5}
+    choques: {SPX: -25, IBOV: -20, SMLL: -25, USDBRL: 10, JURO_PRE: 1.0, JURO_REAL: 0.5, SPREAD_CRED: 1.0}
     descricao: Recessão global; bolsas caem, dólar sobe contra emergentes.
+
+  - id: credito_+200
+    nome: Spread de crédito +200 bps
+    choques: {SPREAD_CRED: 2.0, JURO_PRE: 0.5}
+    descricao: "Abertura de spread de crédito privado com resgates em fundos de crédito (tipo Americanas 2023), curva pré abrindo pouco."
 
   - id: rally_brasil
     nome: Rally Brasil
