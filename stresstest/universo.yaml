@@ -1,5 +1,5 @@
 # Universo de fundos pré-calculado para o painel interativo.
-# Regenerar com: python -m stresstest exportar carteiras/universo.yaml
+# Regenerar com: python -m stresstest exportar   (ou passe outro YAML com a mesma estrutura)
 nome: Universo BWAG
 
 grupos:

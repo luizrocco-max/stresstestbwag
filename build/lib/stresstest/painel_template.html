@@ -1,0 +1,566 @@
+<title>Stress Test de Fundos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --surface-2: #eaeef3;
+  --line: #d6dce4;
+  --ink: #161c26;
+  --ink-2: #4e5a69;
+  --ink-3: #7d8896;
+  --accent: #1f3864;
+  --accent-ink: #ffffff;
+  --accent-soft: #e3eaf6;
+  --loss: #d03b3b;
+  --gain: #2a78d6;
+  --loss-soft: #f6dcdc;
+  --gain-soft: #dbe8fa;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --shadow: 0 1px 2px rgba(22,28,38,.06), 0 4px 16px rgba(22,28,38,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f1319; --surface: #171c24; --surface-2: #1f2630; --line: #2c3541;
+    --ink: #e7ebf1; --ink-2: #b1bac6; --ink-3: #7f8b99;
+    --accent: #8fb0e8; --accent-ink: #0f1319; --accent-soft: #223251;
+    --loss: #e66767; --gain: #3987e5; --loss-soft: #3a2223; --gain-soft: #1d2d45;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1319; --surface: #171c24; --surface-2: #1f2630; --line: #2c3541;
+  --ink: #e7ebf1; --ink-2: #b1bac6; --ink-3: #7f8b99;
+  --accent: #8fb0e8; --accent-ink: #0f1319; --accent-soft: #223251;
+  --loss: #e66767; --gain: #3987e5; --loss-soft: #3a2223; --gain-soft: #1d2d45;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.45 "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+h1, h2, h3 { font-family: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif; font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+h1 { font-size: 24px; }
+h2 { font-size: 17px; }
+h3 { font-size: 14px; color: var(--ink-2); }
+.num, td.n, .kpi-v, .bar-v, .tt { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); font-weight: 500; }
+a { color: var(--accent); }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 6px 10px; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible, .row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type=number], select { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 5px 8px; }
+input[type=number] { width: 68px; text-align: right; font-family: "IBM Plex Mono", monospace; }
+
+.topo { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; padding: 20px 28px 14px; border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
+.topo p { margin: 4px 0 0; color: var(--ink-2); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: transparent; padding: 6px 12px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.controles { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.controles .eyebrow { margin-right: 2px; }
+
+.grade { display: grid; grid-template-columns: 350px minmax(0, 1fr); gap: 20px; padding: 20px 28px 40px; align-items: start; }
+@media (max-width: 960px) { .grade { grid-template-columns: 1fr; } .carteira { position: static !important; } }
+.carteira { position: sticky; top: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; box-shadow: var(--shadow); }
+.carteira h2 { display: flex; justify-content: space-between; align-items: baseline; }
+.pos { display: grid; grid-template-columns: 1fr 74px 24px; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.pos .nm { min-width: 0; }
+.pos .nm b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pos .nm small { color: var(--ink-3); font-size: 11px; }
+.pos .x { border: 0; background: transparent; color: var(--ink-3); padding: 2px; font-size: 16px; line-height: 1; }
+.pos .x:hover { color: var(--loss); }
+.total { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 0 4px; font-weight: 500; }
+.total .num { font-size: 16px; }
+.total.bad .num { color: var(--loss); }
+.adicionar { display: flex; gap: 8px; margin-top: 10px; }
+.adicionar select { flex: 1; min-width: 0; }
+.acoes { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.acoes button { font-size: 12px; padding: 5px 9px; }
+.nota { font-size: 12px; color: var(--ink-3); margin-top: 12px; line-height: 1.4; }
+
+.principal { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.painel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; box-shadow: var(--shadow); min-width: 0; }
+.painel > h2 { margin-bottom: 4px; }
+.painel .sub { color: var(--ink-2); margin: 0 0 12px; font-size: 13px; }
+
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 720px) { .kpis { grid-template-columns: 1fr; } }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); }
+.kpi-v { font-size: 28px; font-weight: 500; line-height: 1.1; margin: 6px 0 4px; }
+.kpi-v.dn { color: var(--loss); } .kpi-v.up { color: var(--gain); }
+.kpi small { color: var(--ink-2); display: block; }
+
+.chart-wrap { overflow-x: auto; }
+svg text { font-family: "IBM Plex Sans", system-ui, sans-serif; fill: var(--ink-2); font-size: 12px; }
+svg text.lbl { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; fill: var(--ink); }
+svg text.lbl.in { fill: #ffffff; }
+svg .grid { stroke: var(--line); stroke-width: 1; }
+svg .zero { stroke: var(--ink-3); stroke-width: 1; }
+svg .row { cursor: pointer; }
+svg .row rect.hit { fill: transparent; }
+svg .row:hover rect.hit, svg .row.sel rect.hit { fill: var(--accent-soft); }
+svg .row text.nm { fill: var(--ink); }
+svg .row.sel text.nm { font-weight: 600; }
+svg rect.bar.neg { fill: var(--loss); } svg rect.bar.pos { fill: var(--gain); }
+svg .row.hip rect.bar { opacity: .55; }
+svg .tag { font-size: 10px; fill: var(--ink-3); letter-spacing: .06em; }
+.legenda { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+.legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 10px; border-radius: 2px; display: inline-block; }
+.sw.hip { opacity: .55; }
+.tt { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); padding: 6px 9px; border-radius: 6px; font-size: 12px; z-index: 10; max-width: 320px; white-space: pre-line; }
+.tt[hidden] { display: none; }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 14px; }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: 12px; background: var(--surface-2); display: inline-flex; gap: 6px; align-items: center; }
+.chip .num { font-weight: 500; }
+.chip .num.dn { color: var(--loss); } .chip .num.up { color: var(--gain); }
+.det-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(240px, 2fr); gap: 20px; }
+@media (max-width: 860px) { .det-grid { grid-template-columns: 1fr; } }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--ink-3); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th.n, td.n { text-align: right; }
+td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr.tot td { font-weight: 600; border-top: 2px solid var(--ink-3); border-bottom: 0; }
+td .dn { color: var(--loss); } td .up { color: var(--gain); }
+.dn { color: var(--loss); } .up { color: var(--gain); }
+.fonte { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.fonte.h { background: var(--accent-soft); color: var(--accent); }
+.tbl-wrap { overflow-x: auto; }
+.contrib { display: grid; grid-template-columns: 90px 1fr 64px; gap: 6px 10px; align-items: center; font-size: 13px; }
+.contrib .bar-t { position: relative; height: 12px; background: var(--surface-2); border-radius: 3px; }
+.contrib .bar-t i { position: absolute; top: 0; height: 100%; border-radius: 3px; }
+.contrib .bar-t .zr { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--ink-3); }
+.contrib .bar-v { text-align: right; font-size: 12px; }
+.contrib .fk { display: inline-flex; align-items: center; gap: 6px; }
+.contrib .dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+.sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px 22px; margin: 8px 0 14px; }
+.sl label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.sl label span:last-child { font-weight: 500; }
+.sl input[type=range] { width: 100%; accent-color: var(--accent); }
+.custom-res { display: flex; gap: 22px; align-items: baseline; flex-wrap: wrap; padding: 12px 14px; background: var(--surface-2); border-radius: 8px; }
+.custom-res .kpi-v { font-size: 24px; margin: 0; }
+.presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.presets button { font-size: 12px; padding: 4px 8px; }
+
+.univ td.nm { white-space: nowrap; }
+.univ th.sort { cursor: pointer; }
+.univ th.sort:hover { color: var(--ink); }
+.univ small.g { color: var(--ink-3); }
+.warn { color: var(--s2); font-size: 11px; }
+footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 70ch; line-height: 1.5; }
+@media (prefers-reduced-motion: no-preference) { svg rect.bar { transition: width .25s ease, x .25s ease; } }
+</style>
+
+<header class="topo">
+  <div>
+    <div class="eyebrow">BWAG · Alocação</div>
+    <h1>Stress Test de Fundos</h1>
+    <p id="subtitulo"></p>
+  </div>
+  <div class="controles">
+    <span class="eyebrow">Cenários históricos</span>
+    <div class="seg" role="group" aria-label="Método">
+      <button id="m-melhor" aria-pressed="true" title="Usa o retorno real da cota quando o fundo existia no cenário">Retorno real quando existir</button>
+      <button id="m-modelo" aria-pressed="false" title="Sempre beta x choque, mesmo com histórico">Só modelo de fatores</button>
+    </div>
+  </div>
+</header>
+
+<main class="grade">
+  <aside class="carteira">
+    <h2>Carteira <span class="eyebrow" id="n-pos"></span></h2>
+    <div id="posicoes"></div>
+    <div class="pos" id="caixa-row">
+      <div class="nm"><b>Caixa / CDI</b><small>rende o CDI do período</small></div>
+      <input type="number" id="caixa" min="0" max="100" step="1" value="0" aria-label="Peso em caixa (%)">
+      <span></span>
+    </div>
+    <div class="total" id="total"><span>Total</span><span class="num" id="total-v">0%</span></div>
+    <div class="adicionar">
+      <select id="add-sel" aria-label="Fundo para adicionar"></select>
+      <button class="primary" id="add-btn">Adicionar</button>
+    </div>
+    <div class="acoes">
+      <button id="b-exemplo">Carteira exemplo</button>
+      <button id="b-iguais">Pesos iguais</button>
+      <button id="b-limpar">Limpar</button>
+    </div>
+    <p class="nota">Pesos em % do patrimônio. Se não somarem 100, o resultado é normalizado. A carteira fica salva neste navegador.</p>
+  </aside>
+
+  <section class="principal">
+    <div class="kpis">
+      <div class="kpi"><span class="eyebrow">Pior cenário histórico</span><div class="kpi-v" id="k1"></div><small id="k1s"></small></div>
+      <div class="kpi"><span class="eyebrow">Pior cenário hipotético</span><div class="kpi-v" id="k2"></div><small id="k2s"></small></div>
+      <div class="kpi"><span class="eyebrow">Cenário próprio</span><div class="kpi-v" id="k3"></div><small id="k3s"></small></div>
+    </div>
+
+    <div class="painel">
+      <h2>P&amp;L da carteira por cenário</h2>
+      <p class="sub">Retorno estimado no período de cada cenário, já com o CDI do período. Clique numa linha para ver a quebra.</p>
+      <div class="chart-wrap"><svg id="grafico" role="img" aria-label="Barras do P&L da carteira por cenário"></svg></div>
+      <div class="legenda">
+        <span><i class="sw" style="background:var(--loss)"></i>perda</span>
+        <span><i class="sw" style="background:var(--gain)"></i>ganho</span>
+        <span><i class="sw hip" style="background:var(--loss)"></i>cenário hipotético (beta × choque)</span>
+      </div>
+    </div>
+
+    <div class="painel" id="detalhe">
+      <h2 id="det-titulo">Cenário</h2>
+      <p class="sub" id="det-desc"></p>
+      <div class="chips" id="det-chips"></div>
+      <div class="det-grid">
+        <div class="tbl-wrap"><table id="det-tab"><thead><tr><th>Posição</th><th class="n">Peso</th><th>Fonte</th><th class="n">P&amp;L</th><th class="n">Contrib.</th></tr></thead><tbody></tbody></table></div>
+        <div>
+          <h3>Contribuição por fator (modelo)</h3>
+          <p class="sub" id="det-cob"></p>
+          <div class="contrib" id="det-contrib"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="painel">
+      <h2>Cenário próprio</h2>
+      <p class="sub">Monte um choque e veja o efeito na carteira pelo modelo de fatores (janela de 21 pregões para o CDI).</p>
+      <div class="presets" id="presets"></div>
+      <div class="sliders" id="sliders"></div>
+      <div class="custom-res">
+        <div><span class="eyebrow">Carteira</span><div class="kpi-v" id="c-tot"></div></div>
+        <div><span class="eyebrow">Ex-CDI</span><div class="kpi-v" id="c-ex" style="font-size:18px"></div></div>
+        <div><span class="eyebrow">Pior posição</span><div id="c-pior" style="font-weight:500"></div></div>
+      </div>
+      <div class="tbl-wrap" style="margin-top:12px"><table id="c-tab"><thead><tr><th>Posição</th><th class="n">Peso</th><th class="n">P&amp;L</th><th class="n">Contrib.</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div class="painel univ">
+      <h2>Universo de fundos</h2>
+      <p class="sub">Betas do excesso de retorno diário sobre o CDI. Juros lidos como % por +100 bps. Clique num cabeçalho para ordenar.</p>
+      <div class="tbl-wrap"><table id="u-tab"><thead></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+</main>
+<footer id="rodape"></footer>
+<div class="tt" id="tt" hidden></div>
+
+<script id="dados" type="application/json">__DADOS__</script>
+<script>
+(function () {
+  const D = JSON.parse(document.getElementById('dados').textContent);
+  const FAT = D.fatores.map(f => f.id);
+  const FMETA = Object.fromEntries(D.fatores.map(f => [f.id, f]));
+  const FCOR = { IBOV: 'var(--s1)', SPX: 'var(--s2)', USDBRL: 'var(--s3)', JURO_PRE: 'var(--s4)', JURO_REAL: 'var(--s5)', CDI: 'var(--s6)' };
+  const FNOME = { IBOV: 'Ibovespa', SPX: 'S&P 500', USDBRL: 'Dólar', JURO_PRE: 'Juro pré 2a', JURO_REAL: 'Juro real 5a', CDI: 'CDI' };
+  const byCnpj = Object.fromEntries(D.fundos.map(f => [f.cnpj, f]));
+  const pct = new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'exceptZero' });
+  const pct0 = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 0 });
+  const pct1 = new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const dec = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: 'exceptZero' });
+  const fmtData = s => s ? s.split('-').reverse().join('/') : '';
+  const sgn = v => v < -0.00005 ? 'dn' : v > 0.00005 ? 'up' : '';
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // ---------------------------------------------------------------- estado
+  let metodo = 'melhor';
+  let carteira = { fundos: [], caixa: 0 };  // fundos: [{cnpj, peso}]
+  let selecionado = null;
+  let custom = { IBOV: -20, SPX: -10, USDBRL: 10, JURO_PRE: 1.5, JURO_REAL: 1.0 };
+  let ordem = { k: 'grupo', asc: true };
+
+  function carregarEstado() {
+    try {
+      const s = JSON.parse(localStorage.getItem('stress-carteira') || 'null');
+      if (s && Array.isArray(s.fundos) && s.fundos.every(f => byCnpj[f.cnpj])) return s;
+    } catch (e) { /* sem storage */ }
+    return null;
+  }
+  function salvarEstado() { try { localStorage.setItem('stress-carteira', JSON.stringify(carteira)); } catch (e) { /* ignora */ } }
+  function exemplo() { return { fundos: D.exemplo.fundos.filter(f => byCnpj[f.cnpj]).map(f => ({ ...f })), caixa: D.exemplo.caixa_cdi }; }
+
+  // ---------------------------------------------------------------- cálculo
+  function pesos() {
+    const tot = carteira.fundos.reduce((s, f) => s + (+f.peso || 0), 0) + (+carteira.caixa || 0);
+    const k = tot > 0 ? 1 / tot : 0;
+    return { w: Object.fromEntries(carteira.fundos.map(f => [f.cnpj, (+f.peso || 0) * k])), wc: (+carteira.caixa || 0) * k, tot };
+  }
+  function plFundo(f, cen, usarHist) {
+    let ex = 0;
+    if (f.betas) for (const k of FAT) ex += (f.betas[k] || 0) * (cen.choques[k] || 0);
+    const total = f.betas ? (1 + ex) * (1 + cen.cdi) - 1 : null;
+    const hist = cen.tipo === 'historico' && f.hist ? f.hist[cen.id] : null;
+    const temHist = hist !== null && hist !== undefined;
+    if (usarHist && temHist) return { usado: hist, fonte: 'histórico', ex, total, hist };
+    if (total !== null) return { usado: total, fonte: 'modelo', ex, total, hist: temHist ? hist : null };
+    return { usado: null, fonte: 'sem dados', ex: null, total: null, hist: null };
+  }
+  function plCarteira(cen, usarHist) {
+    const { w, wc } = pesos();
+    let pl = 0, cobertura = wc, faltando = 0, linhas = [];
+    const contrib = Object.fromEntries(FAT.map(k => [k, 0]));
+    for (const p of carteira.fundos) {
+      const f = byCnpj[p.cnpj], r = plFundo(f, cen, usarHist), peso = w[p.cnpj];
+      if (r.usado === null) { faltando += peso; linhas.push({ f, peso, ...r, c: null }); continue; }
+      pl += peso * r.usado;
+      if (r.fonte === 'histórico') cobertura += peso;
+      if (f.betas) for (const k of FAT) contrib[k] += peso * (f.betas[k] || 0) * (cen.choques[k] || 0);
+      linhas.push({ f, peso, ...r, c: peso * r.usado });
+    }
+    pl += wc * cen.cdi;
+    contrib.CDI = cen.cdi;
+    linhas.push({ f: { nome: 'Caixa / CDI', cnpj: 'CDI' }, peso: wc, usado: cen.cdi, fonte: 'cdi', c: wc * cen.cdi });
+    return { pl: faltando > 0.999 ? null : pl, cobertura, faltando, linhas, contrib };
+  }
+  function cenCustom() {
+    const ch = {}; for (const k of FAT) ch[k] = FMETA[k].tipo === 'retorno' ? custom[k] / 100 : custom[k];
+    return { id: '_custom', nome: 'Cenário próprio', rotulo: 'Cenário próprio', tipo: 'hipotetico', choques: ch, cdi: Math.pow(1 + D.cdi_dia, D.horizonte_dias) - 1, n_dias: D.horizonte_dias };
+  }
+  function resultados() {
+    return D.cenarios.map(c => ({ c, r: plCarteira(c, metodo === 'melhor') }));
+  }
+
+  // ---------------------------------------------------------------- carteira (UI)
+  const elPos = document.getElementById('posicoes');
+  function renderCarteira() {
+    elPos.innerHTML = '';
+    for (const p of carteira.fundos) {
+      const f = byCnpj[p.cnpj];
+      const row = document.createElement('div'); row.className = 'pos';
+      row.innerHTML = `<div class="nm"><b title="${esc(f.nome)} · ${esc(f.gestor || '')}">${esc(f.nome)}</b><small>${esc(f.grupo)}</small></div>
+        <input type="number" min="0" max="100" step="0.5" value="${p.peso}" aria-label="Peso de ${esc(f.nome)} (%)">
+        <button class="x" title="Remover" aria-label="Remover ${esc(f.nome)}">×</button>`;
+      row.querySelector('input').addEventListener('input', e => { p.peso = +e.target.value || 0; atualizar(); });
+      row.querySelector('.x').addEventListener('click', () => { carteira.fundos = carteira.fundos.filter(x => x !== p); renderCarteira(); atualizar(); });
+      elPos.appendChild(row);
+    }
+    document.getElementById('caixa').value = carteira.caixa;
+    document.getElementById('n-pos').textContent = carteira.fundos.length + (carteira.fundos.length === 1 ? ' fundo' : ' fundos');
+    renderSelect();
+  }
+  function renderSelect() {
+    const sel = document.getElementById('add-sel'); sel.innerHTML = '';
+    const usados = new Set(carteira.fundos.map(f => f.cnpj));
+    for (const g of D.grupos) {
+      const og = document.createElement('optgroup'); og.label = g;
+      for (const f of D.fundos.filter(f => f.grupo === g && !usados.has(f.cnpj))) {
+        const o = document.createElement('option'); o.value = f.cnpj; o.textContent = f.nome; og.appendChild(o);
+      }
+      if (og.children.length) sel.appendChild(og);
+    }
+  }
+  document.getElementById('add-btn').addEventListener('click', () => {
+    const c = document.getElementById('add-sel').value; if (!c) return;
+    carteira.fundos.push({ cnpj: c, peso: 10 }); renderCarteira(); atualizar();
+  });
+  document.getElementById('caixa').addEventListener('input', e => { carteira.caixa = +e.target.value || 0; atualizar(); });
+  document.getElementById('b-exemplo').addEventListener('click', () => { carteira = exemplo(); renderCarteira(); atualizar(); });
+  document.getElementById('b-iguais').addEventListener('click', () => {
+    const n = carteira.fundos.length; if (!n) return;
+    const resto = 100 - (+carteira.caixa || 0);
+    carteira.fundos.forEach(f => f.peso = Math.round(resto / n * 10) / 10); renderCarteira(); atualizar();
+  });
+  document.getElementById('b-limpar').addEventListener('click', () => { carteira = { fundos: [], caixa: 100 }; renderCarteira(); atualizar(); });
+  for (const id of ['m-melhor', 'm-modelo']) document.getElementById(id).addEventListener('click', () => {
+    metodo = id === 'm-melhor' ? 'melhor' : 'modelo';
+    document.getElementById('m-melhor').setAttribute('aria-pressed', metodo === 'melhor');
+    document.getElementById('m-modelo').setAttribute('aria-pressed', metodo === 'modelo');
+    atualizar();
+  });
+
+  // ---------------------------------------------------------------- gráfico
+  const svg = document.getElementById('grafico');
+  const tt = document.getElementById('tt');
+  function mostrarTT(e, txt) { tt.textContent = txt; tt.hidden = false; moverTT(e); }
+  function moverTT(e) { tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 330) + 'px'; tt.style.top = (e.clientY + 14) + 'px'; }
+  function esconderTT() { tt.hidden = true; }
+  function renderGrafico(res) {
+    const linhas = res.filter(x => x.r.pl !== null).sort((a, b) => a.r.pl - b.r.pl);
+    const W = Math.max(svg.parentElement.clientWidth, 640), rowH = 26, padL = 330, padR = 70, top = 8;
+    const H = top + linhas.length * rowH + 24;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+    const vals = linhas.map(x => x.r.pl);
+    const mn = Math.min(0, ...vals), mx = Math.max(0, ...vals);
+    const span = (mx - mn) || 0.01;
+    const x0 = padL, x1 = W - padR;
+    const X = v => x0 + (v - mn) / span * (x1 - x0);
+    let s = '';
+    // grade
+    const passo = span > 0.3 ? 0.1 : span > 0.12 ? 0.05 : span > 0.05 ? 0.02 : 0.01;
+    for (let v = Math.ceil(mn / passo) * passo; v <= mx + 1e-9; v += passo) {
+      const x = X(v); s += `<line class="grid" x1="${x}" y1="${top}" x2="${x}" y2="${H - 22}"/>`;
+      s += `<text x="${x}" y="${H - 6}" text-anchor="middle">${pct0.format(v)}</text>`;
+    }
+    s += `<line class="zero" x1="${X(0)}" y1="${top}" x2="${X(0)}" y2="${H - 22}"/>`;
+    linhas.forEach((x, i) => {
+      const y = top + i * rowH, v = x.r.pl, neg = v < 0;
+      const bx = neg ? X(v) : X(0), bw = Math.max(Math.abs(X(v) - X(0)), 1);
+      const tag = x.c.tipo === 'historico' ? fmtData(x.c.inicio).slice(3) + '–' + fmtData(x.c.fim).slice(3) : 'HIPOTÉTICO';
+      const nome = x.c.nome.length > 34 ? x.c.nome.slice(0, 33) + '…' : x.c.nome;
+      const dentro = neg && bw > 64;
+      s += `<g class="row ${x.c.tipo === 'hipotetico' ? 'hip' : ''} ${selecionado === x.c.id ? 'sel' : ''}" data-id="${x.c.id}" tabindex="0" role="button" aria-label="${esc(x.c.nome)}: ${pct.format(v)}">
+        <rect class="hit" x="0" y="${y}" width="${W}" height="${rowH}" rx="4"/>
+        <text class="nm" x="${padL - 10}" y="${y + rowH / 2 + 4}" text-anchor="end">${esc(nome)}</text>
+        <text class="tag" x="8" y="${y + rowH / 2 + 4}">${tag}</text>
+        <rect class="bar ${neg ? 'neg' : 'pos'}" x="${bx}" y="${y + 6}" width="${bw}" height="${rowH - 12}" rx="3"/>
+        <text class="lbl ${dentro ? 'in' : ''}" x="${dentro ? bx + 6 : neg ? bx - 6 : bx + bw + 6}" y="${y + rowH / 2 + 4}" text-anchor="${neg && !dentro ? 'end' : 'start'}">${pct.format(v)}</text>
+      </g>`;
+    });
+    svg.innerHTML = s;
+    svg.querySelectorAll('.row').forEach(g => {
+      const id = g.dataset.id, x = linhas.find(l => l.c.id === id);
+      const sel = () => { selecionado = id; renderDetalhe(); svg.querySelectorAll('.row').forEach(r => r.classList.toggle('sel', r.dataset.id === id)); };
+      g.addEventListener('click', sel);
+      g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sel(); } });
+      g.addEventListener('mouseenter', e => mostrarTT(e, `${x.c.nome}\n${x.c.tipo === 'historico' ? fmtData(x.c.inicio) + ' a ' + fmtData(x.c.fim) + ' · ' + x.c.n_dias + ' pregões' : 'hipotético · ' + x.c.n_dias + ' pregões'}\nCarteira: ${pct.format(x.r.pl)} · CDI no período: ${pct.format(x.c.cdi)}\nCom retorno real: ${pct0.format(x.r.cobertura)} da carteira`));
+      g.addEventListener('mousemove', moverTT);
+      g.addEventListener('mouseleave', esconderTT);
+    });
+  }
+
+  // ---------------------------------------------------------------- detalhe
+  function chipsChoques(c) {
+    return FAT.map(k => {
+      const v = c.choques[k] || 0, ret = FMETA[k].tipo === 'retorno';
+      return `<span class="chip"><i class="dot" style="background:${FCOR[k]};width:8px;height:8px;border-radius:2px"></i>${FNOME[k]} <span class="num ${sgn(v)}">${ret ? pct.format(v) : dec.format(v) + ' p.p.'}</span></span>`;
+    }).join('') + `<span class="chip">CDI <span class="num">${pct.format(c.cdi)}</span></span>`;
+  }
+  function tabelaLinhas(tb, linhas, comFonte) {
+    const ord = linhas.slice().sort((a, b) => (a.usado ?? 1) - (b.usado ?? 1));
+    tb.innerHTML = ord.map(l => `<tr><td>${esc(l.f.nome)}</td><td class="n">${pct1.format(l.peso)}</td>${comFonte ? `<td><span class="fonte ${l.fonte === 'histórico' ? 'h' : ''}">${l.fonte}</span></td>` : ''}<td class="n"><span class="${sgn(l.usado ?? 0)}">${l.usado === null ? '—' : pct.format(l.usado)}</span></td><td class="n"><span class="${sgn(l.c ?? 0)}">${l.c === null ? '—' : pct.format(l.c)}</span></td></tr>`).join('');
+  }
+  function contribHtml(contrib, el) {
+    const ks = [...FAT, 'CDI'];
+    const mx = Math.max(0.0001, ...ks.map(k => Math.abs(contrib[k] || 0)));
+    el.innerHTML = ks.map(k => {
+      const v = contrib[k] || 0, w = Math.abs(v) / mx * 50;
+      return `<span class="fk"><i class="dot" style="background:${FCOR[k]}"></i>${FNOME[k]}</span><div class="bar-t"><span class="zr" style="left:50%"></span><i style="left:${v < 0 ? 50 - w : 50}%;width:${w}%;background:${FCOR[k]}"></i></div><span class="bar-v ${sgn(v)}">${pct.format(v)}</span>`;
+    }).join('');
+  }
+  function renderDetalhe() {
+    const c = D.cenarios.find(x => x.id === selecionado) || D.cenarios[0];
+    const r = plCarteira(c, metodo === 'melhor');
+    document.getElementById('det-titulo').textContent = c.nome + (c.tipo === 'historico' ? ` · ${fmtData(c.inicio)} a ${fmtData(c.fim)}` : ' · hipotético');
+    document.getElementById('det-desc').textContent = c.descricao || '';
+    document.getElementById('det-chips').innerHTML = chipsChoques(c);
+    const tb = document.querySelector('#det-tab tbody');
+    tabelaLinhas(tb, r.linhas, true);
+    tb.innerHTML += `<tr class="tot"><td>Carteira</td><td class="n">100%</td><td></td><td class="n"><span class="${sgn(r.pl ?? 0)}">${r.pl === null ? '—' : pct.format(r.pl)}</span></td><td></td></tr>`;
+    const soma = Object.values(r.contrib).reduce((a, b) => a + b, 0);
+    document.getElementById('det-cob').textContent = c.tipo === 'historico'
+      ? `${pct0.format(r.cobertura)} da carteira com retorno real; soma do modelo: ${pct.format(soma)}` : `Soma do modelo: ${pct.format(soma)}`;
+    contribHtml(r.contrib, document.getElementById('det-contrib'));
+  }
+
+  // ---------------------------------------------------------------- cenário próprio
+  const LIM = { IBOV: [-50, 30, 1, '%'], SPX: [-40, 30, 1, '%'], USDBRL: [-20, 40, 1, '%'], JURO_PRE: [-4, 5, 0.1, ' p.p.'], JURO_REAL: [-3, 4, 0.1, ' p.p.'] };
+  const PRESETS = [
+    ['Risk-off Brasil', { IBOV: -25, SPX: -5, USDBRL: 15, JURO_PRE: 2.5, JURO_REAL: 1.5 }],
+    ['Só bolsa −20%', { IBOV: -20, SPX: 0, USDBRL: 0, JURO_PRE: 0, JURO_REAL: 0 }],
+    ['Só juros +200', { IBOV: 0, SPX: 0, USDBRL: 0, JURO_PRE: 2, JURO_REAL: 1.5 }],
+    ['Só dólar +20%', { IBOV: 0, SPX: 0, USDBRL: 20, JURO_PRE: 0, JURO_REAL: 0 }],
+    ['Rally', { IBOV: 15, SPX: 5, USDBRL: -10, JURO_PRE: -1.5, JURO_REAL: -1 }],
+    ['Zerar', { IBOV: 0, SPX: 0, USDBRL: 0, JURO_PRE: 0, JURO_REAL: 0 }],
+  ];
+  function renderSliders() {
+    const el = document.getElementById('sliders'); el.innerHTML = '';
+    for (const k of FAT) {
+      const [mn, mx, st, un] = LIM[k];
+      const d = document.createElement('div'); d.className = 'sl';
+      d.innerHTML = `<label><span><i class="dot" style="background:${FCOR[k]};display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px"></i>${FNOME[k]}</span><span class="num" id="sv-${k}"></span></label><input type="range" min="${mn}" max="${mx}" step="${st}" value="${custom[k]}" id="sl-${k}" aria-label="${FNOME[k]}">`;
+      d.querySelector('input').addEventListener('input', e => { custom[k] = +e.target.value; renderCustom(); });
+      el.appendChild(d);
+    }
+    const pr = document.getElementById('presets'); pr.innerHTML = '';
+    for (const [nome, v] of PRESETS) {
+      const b = document.createElement('button'); b.textContent = nome;
+      b.addEventListener('click', () => { custom = { ...v }; for (const k of FAT) document.getElementById('sl-' + k).value = custom[k]; renderCustom(); });
+      pr.appendChild(b);
+    }
+  }
+  function renderCustom() {
+    for (const k of FAT) { const un = LIM[k][3]; document.getElementById('sv-' + k).textContent = (custom[k] > 0 ? '+' : '') + custom[k] + un; }
+    const c = cenCustom(), r = plCarteira(c, false);
+    const ex = r.pl === null ? null : (1 + r.pl) / (1 + c.cdi) - 1;
+    const t = document.getElementById('c-tot'); t.textContent = r.pl === null ? '—' : pct.format(r.pl); t.className = 'kpi-v ' + sgn(r.pl ?? 0);
+    const e = document.getElementById('c-ex'); e.textContent = ex === null ? '—' : pct.format(ex); e.className = 'kpi-v ' + sgn(ex ?? 0);
+    const pior = r.linhas.filter(l => l.usado !== null).sort((a, b) => a.usado - b.usado)[0];
+    document.getElementById('c-pior').textContent = pior ? `${pior.f.nome} (${pct.format(pior.usado)})` : '—';
+    tabelaLinhas(document.querySelector('#c-tab tbody'), r.linhas, false);
+    const k3 = document.getElementById('k3'); k3.textContent = r.pl === null ? '—' : pct.format(r.pl); k3.className = 'kpi-v ' + sgn(r.pl ?? 0);
+    document.getElementById('k3s').textContent = FAT.map(k => `${FNOME[k]} ${(custom[k] > 0 ? '+' : '') + custom[k] + LIM[k][3].trim()}`).join(' · ');
+  }
+
+  // ---------------------------------------------------------------- universo
+  const COLS = [
+    ['nome', 'Fundo', f => f.nome, false], ['grupo', 'Grupo', f => f.grupo, false],
+    ['IBOV', 'β Ibov', f => f.betas?.IBOV, true], ['SPX', 'β S&P', f => f.betas?.SPX, true], ['USDBRL', 'β Dólar', f => f.betas?.USDBRL, true],
+    ['JURO_PRE', 'Pré %/100bps', f => f.betas ? f.betas.JURO_PRE * 100 : null, true], ['JURO_REAL', 'Real %/100bps', f => f.betas ? f.betas.JURO_REAL * 100 : null, true],
+    ['r2', 'R²', f => f.r2, true], ['vol', 'Vol a.a.', f => f.stats?.vol_anual, true], ['dd', 'Máx. DD', f => f.stats?.max_drawdown, true],
+    ['p21', 'Pior 21d', f => f.stats?.pior_21d, true], ['desde', 'Cotas desde', f => f.stats?.inicio_serie, false],
+  ];
+  function fmtCol(k, v) {
+    if (v === null || v === undefined) return '—';
+    if (['r2'].includes(k)) return pct0.format(v);
+    if (['vol', 'dd', 'p21'].includes(k)) return `<span class="${sgn(v)}">${pct.format(v)}</span>`;
+    if (['IBOV', 'SPX', 'USDBRL', 'JURO_PRE', 'JURO_REAL'].includes(k)) return dec.format(v);
+    if (k === 'desde') return fmtData(v);
+    return esc(v);
+  }
+  function renderUniverso() {
+    const th = document.querySelector('#u-tab thead');
+    th.innerHTML = '<tr>' + COLS.map(([k, t, , n]) => `<th class="sort ${n ? 'n' : ''}" data-k="${k}">${t}${ordem.k === k ? (ordem.asc ? ' ↑' : ' ↓') : ''}</th>`).join('') + '</tr>';
+    th.querySelectorAll('th').forEach(h => h.addEventListener('click', () => { const k = h.dataset.k; ordem = { k, asc: ordem.k === k ? !ordem.asc : true }; renderUniverso(); }));
+    const col = COLS.find(c => c[0] === ordem.k);
+    const rows = D.fundos.slice().sort((a, b) => {
+      const va = col[2](a), vb = col[2](b);
+      if (va == null) return 1; if (vb == null) return -1;
+      const r = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb), 'pt-BR');
+      return ordem.asc ? r : -r;
+    });
+    document.querySelector('#u-tab tbody').innerHTML = rows.map(f => '<tr>' + COLS.map(([k, , g, n]) => {
+      let v = fmtCol(k, g(f));
+      if (k === 'nome') v = `<b style="font-weight:500">${esc(f.nome)}</b><br><small class="g">${esc(f.gestor || '')}</small>` + (f.avisos.length ? `<br><span class="warn" title="${esc(f.avisos.join(' | '))}">⚠ ${esc(f.avisos[0].slice(0, 60))}</span>` : '');
+      return `<td class="${n ? 'n' : ''} ${k === 'nome' ? 'nm' : ''}">${v}</td>`;
+    }).join('') + '</tr>').join('');
+  }
+
+  // ---------------------------------------------------------------- atualização geral
+  function atualizar() {
+    salvarEstado();
+    const { tot } = pesos();
+    const tv = document.getElementById('total-v'); tv.textContent = pct0.format(tot / 100);
+    document.getElementById('total').classList.toggle('bad', Math.abs(tot - 100) > 0.5);
+    const res = resultados();
+    renderGrafico(res);
+    const hist = res.filter(x => x.c.tipo === 'historico' && x.r.pl !== null).sort((a, b) => a.r.pl - b.r.pl)[0];
+    const hip = res.filter(x => x.c.tipo === 'hipotetico' && x.r.pl !== null).sort((a, b) => a.r.pl - b.r.pl)[0];
+    for (const [id, x] of [['k1', hist], ['k2', hip]]) {
+      const el = document.getElementById(id), s = document.getElementById(id + 's');
+      if (!x) { el.textContent = '—'; el.className = 'kpi-v'; s.textContent = 'monte uma carteira'; continue; }
+      el.textContent = pct.format(x.r.pl); el.className = 'kpi-v ' + sgn(x.r.pl);
+      s.textContent = x.c.nome + (x.c.tipo === 'historico' ? ` · ${x.c.n_dias} pregões` : '');
+    }
+    if (!selecionado) selecionado = hist ? hist.c.id : D.cenarios[0].id;
+    renderDetalhe();
+    renderCustom();
+  }
+
+  // ---------------------------------------------------------------- init
+  document.getElementById('subtitulo').textContent = `Betas de ${D.janela_meses} meses · cotas CVM até ${fmtData(D.cotas_ate)} · ${D.fundos.length} fundos · ${D.cenarios.length} cenários · gerado em ${fmtData(D.gerado_em)}`;
+  document.getElementById('rodape').innerHTML = `Modelo: regressão do excesso de retorno diário de cada fundo sobre o CDI contra Ibovespa, S&amp;P 500, dólar PTAX e as taxas do Tesouro pré (~2 anos) e IPCA+ (~5 anos). P&amp;L de cenário = soma de beta × choque, capitalizado com o CDI do período. Fundos de crédito privado têm cota suavizada e betas próximos de zero: o modelo subestima a perda deles; use os cenários históricos com retorno real. Fontes: CVM, Banco Central, Tesouro Direto e Yahoo Finance. Simulação quantitativa, não é recomendação de investimento.`;
+  carteira = carregarEstado() || exemplo();
+  renderCarteira(); renderSliders(); renderUniverso(); atualizar();
+  window.addEventListener('resize', () => renderGrafico(resultados()));
+})();
+</script>

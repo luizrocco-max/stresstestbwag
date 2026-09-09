@@ -1,0 +1,61 @@
+# Universo de fundos pré-calculado para o painel interativo.
+# Regenerar com: python -m stresstest exportar   (ou passe outro YAML com a mesma estrutura)
+nome: Universo BWAG
+
+grupos:
+  - nome: Multimercado macro
+    fundos:
+      - {cnpj: 12.798.221/0001-36, nome: SPX Nimitz}
+      - {cnpj: 07.455.507/0001-89, nome: Verde}
+      - {cnpj: 20.270.180/0001-39, nome: Kapitalo Zeta}
+      - {cnpj: 26.978.199/0001-10, nome: Kapitalo Kappa}
+      - {cnpj: 26.218.403/0001-03, nome: Kinea Atlas}
+      - {cnpj: 15.487.918/0001-84, nome: Ibiuna Hedge ST}
+      - {cnpj: 29.236.556/0001-63, nome: Legacy Capital}
+      - {cnpj: 23.884.632/0001-60, nome: Adam Macro}
+      - {cnpj: 28.581.145/0001-42, nome: Vinland Macro}
+  - nome: Multimercado livre / quant
+    fundos:
+      - {cnpj: 21.470.947/0001-36, nome: Absolute Vertex}
+      - {cnpj: 97.548.167/0001-23, nome: JGP Strategy}
+      - {cnpj: 22.099.965/0001-16, nome: Giant Zarathustra}
+      - {cnpj: 32.745.001/0001-51, nome: Gávea Macro}
+  - nome: Ações
+    fundos:
+      - {cnpj: 73.232.530/0001-39, nome: Dynamo Cougar}
+      - {cnpj: 11.188.572/0001-62, nome: Atmos}
+      - {cnpj: 08.680.812/0001-37, nome: Verde Equity}
+      - {cnpj: 15.165.493/0001-97, nome: Bogari Value}
+      - {cnpj: 14.284.684/0001-05, nome: Brasil Capital 30}
+      - {cnpj: 26.491.395/0001-66, nome: Moat Capital}
+      - {cnpj: 11.046.362/0001-30, nome: Tempo Capital}
+      - {cnpj: 12.055.107/0001-16, nome: Alaska Black}
+      - {cnpj: 17.009.959/0001-90, nome: BTG Absoluto}
+      - {cnpj: 03.168.062/0001-03, nome: ARX Income}
+  - nome: Crédito privado
+    fundos:
+      - {cnpj: 20.146.318/0001-92, nome: Capitânia Premium}
+      - {cnpj: 14.188.164/0001-07, nome: Sparta Top}
+      - {cnpj: 26.978.438/0001-32, nome: Iridium Apollo}
+      - {cnpj: 34.218.678/0001-67, nome: Augme 180}
+      - {cnpj: 26.324.298/0001-89, nome: Kinea Infra}
+  - nome: Renda fixa
+    fundos:
+      - {cnpj: 11.060.913/0001-10, nome: Caixa IMA-B 5}
+      - {cnpj: 09.215.250/0001-13, nome: BTG Tesouro Selic}
+  - nome: Global
+    fundos:
+      - {cnpj: 23.720.107/0001-00, nome: PIMCO Income (hedge)}
+      - {cnpj: 32.225.606/0001-11, nome: PIMCO Income Dólar}
+      - {cnpj: 35.556.516/0001-00, nome: Wellington Ventura Dólar}
+
+exemplo:
+  caixa_cdi: 20
+  fundos:
+    - {cnpj: 12.798.221/0001-36, peso: 12}
+    - {cnpj: 07.455.507/0001-89, peso: 12}
+    - {cnpj: 26.218.403/0001-03, peso: 8}
+    - {cnpj: 73.232.530/0001-39, peso: 10}
+    - {cnpj: 11.188.572/0001-62, peso: 8}
+    - {cnpj: 20.146.318/0001-92, peso: 15}
+    - {cnpj: 11.060.913/0001-10, peso: 15}

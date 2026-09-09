@@ -115,3 +115,23 @@ def test_motor_rodar_sintetico(painel_sintetico, monkeypatch):
     assert det["usado"] == pytest.approx(real)
     assert cc.loc["h", "peso_com_historico_real"] == pytest.approx(1.0)
     assert set(res.matriz.index) == {"Acoes", "Pre", "Caixa"}
+
+
+def test_api_stress_carteira(painel_sintetico, monkeypatch):
+    from stresstest import api
+    monkeypatch.setattr(cvm, "info", lambda c: {"nome": "F", "gestor": "G", "classe_cvm": "", "classe_anbima": "", "situacao": ""})
+    p = painel_sintetico
+    cot = pd.DataFrame({"11111111000111": cotas_de(p, beta_ibov=1.0, beta_pre=0.0, seed=2)})
+    monkeypatch.setattr(cvm, "cotas", lambda cnpjs, inicio, fim=None: cot)
+    monkeypatch.setattr(motor, "painel_fatores", lambda inicio: p)
+    lista_yaml = __import__("pathlib").Path(__file__).parent / "_cen.yaml"
+    lista_yaml.write_text("hipoteticos:\n  - {id: b, nome: Bolsa -20, choques: {IBOV: -20}}\n", encoding="utf-8")
+    try:
+        res = api.stress_carteira([{"cnpj": "11.111.111/0001-11", "peso": 50}], caixa_cdi=50, cenarios=lista_yaml)
+    finally:
+        lista_yaml.unlink()
+    import json
+    json.dumps(res)  # serializável
+    assert res["resultado_carteira"][0]["pl_carteira"] == pytest.approx(0.5 * -0.20 + 0.0085, abs=0.005)
+    assert res["betas"][0]["IBOV"] == pytest.approx(1.0, abs=0.05)
+    assert res["carteira"]["posicoes"][-1]["tipo"] == "cdi"

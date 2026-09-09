@@ -22,7 +22,7 @@ Ibovespa e S&P 500 do Yahoo Finance e as curvas do Tesouro Direto.
 3. **Betas**: para cada fundo, regressão (OLS, erros HAC) do excesso de retorno diário sobre o CDI
    contra os fatores, na janela mais recente (padrão 24 meses). O beta de um fator de taxa é lido
    como "retorno do fundo por +100 bps" (um fundo prefixado de duration 2 tem beta ≈ -2%).
-4. **Cenários** (`cenarios/cenarios.yaml`):
+4. **Cenários** (`stresstest/cenarios.yaml`, ou um YAML seu via `--cenarios`):
    - **históricos**: janela de datas (ex.: COVID, 19/02 a 23/03/2020). Os choques dos fatores vêm dos
      dados reais. Se o fundo já existia, o sistema também apura o **retorno real da cota** no período.
    - **hipotéticos**: choques definidos à mão (ex.: `JURO_PRE: 2` = +200 bps, `IBOV: -20` = -20%).
@@ -78,8 +78,8 @@ modelo de fatores continua cobrindo todos).
 
 ## Painel interativo
 
-`python -m stresstest exportar carteiras/universo.yaml` calcula betas, estatísticas e retornos
-históricos de todos os fundos de `carteiras/universo.yaml` e gera `saida/painel.html`: uma página
+`python -m stresstest exportar` calcula betas, estatísticas e retornos
+históricos de todos os fundos de `stresstest/universo.yaml` (ou de um YAML seu passado como argumento) e gera `saida/painel.html`: uma página
 única, sem servidor, em que você monta a carteira (fundos, pesos e caixa), vê o P&L por cenário,
 clica num cenário para ver a quebra por fundo e por fator, e cria cenários próprios com sliders
 de bolsa, S&P, dólar e juros. Para incluir um fundo novo, acrescente o CNPJ ao YAML e exporte de novo.
@@ -121,7 +121,8 @@ stresstest/
   relatorio.py       resumo no terminal e Excel
   painel_web.py      exporta o painel interativo (usa painel_template.html)
   cli.py             comandos buscar / rodar / cenarios / fatores / atualizar
-cenarios/cenarios.yaml   biblioteca de cenários (edite à vontade)
+  cenarios.yaml      biblioteca de cenários (edite ou passe outro YAML)
+  universo.yaml      universo de fundos do painel interativo
+  api.py             API programática para outros sistemas (ver INTEGRACAO.md)
 carteiras/exemplo.yaml   carteira de exemplo
-carteiras/universo.yaml  universo de fundos do painel interativo
 ```

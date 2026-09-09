@@ -1,0 +1,114 @@
+# Biblioteca de cenários de stress.
+#
+# historicos: janela do FECHAMENTO de `inicio` ao FECHAMENTO de `fim`. Os choques dos
+#   fatores são calculados a partir dos dados reais (Ibovespa, dólar, S&P, curvas do Tesouro).
+#   Para fundos que já existiam, o retorno real da cota no período também é apurado.
+#
+# hipoteticos: choques definidos à mão. Fatores de retorno em % (IBOV: -25 => -25%);
+#   fatores de taxa em pontos percentuais (JURO_PRE: 2 => +200 bps).
+#   Fatores omitidos recebem 0. horizonte_dias só serve para acumular o CDI.
+#
+# Fatores disponíveis: IBOV, SMLL, SPX, USDBRL, JURO_PRE, JURO_REAL
+
+historicos:
+  - id: crise_2008
+    nome: Crise 2008 (Lehman)
+    inicio: 2008-09-12
+    fim: 2008-10-27
+    descricao: Quebra do Lehman até o fundo do Ibovespa; dólar dispara e curva abre.
+
+  - id: taper_2013
+    nome: Taper tantrum 2013
+    inicio: 2013-05-22
+    fim: 2013-08-21
+    descricao: Fed sinaliza redução do QE; saída de emergentes, dólar e juros longos sobem.
+
+  - id: rebaixamento_2015
+    nome: Perda do grau de investimento 2015
+    inicio: 2015-09-08
+    fim: 2015-09-24
+    descricao: S&P rebaixa o Brasil; dólar bate R$ 4,20, curva estressa.
+
+  - id: joesley_2017
+    nome: Joesley Day (mai/2017)
+    inicio: 2017-05-16
+    fim: 2017-05-18
+    descricao: Delação da JBS; um dia com circuit breaker, dólar +8% e curva abrindo forte.
+
+  - id: greve_2018
+    nome: Greve dos caminhoneiros / eleição 2018
+    inicio: 2018-05-21
+    fim: 2018-06-18
+    descricao: Greve, saída do presidente da Petrobras e incerteza eleitoral.
+
+  - id: covid_2020
+    nome: COVID-19 (fev-mar/2020)
+    inicio: 2020-02-19
+    fim: 2020-03-23
+    descricao: Do pico ao fundo do Ibovespa; seis circuit breakers, dólar acima de R$ 5.
+
+  - id: fiscal_2021
+    nome: Risco fiscal 2021 (precatórios / teto)
+    inicio: 2021-08-02
+    fim: 2021-11-26
+    descricao: Abertura da curva com o furo do teto de gastos; bolsa cai ~20%.
+
+  - id: global_2022
+    nome: Aperto do Fed 2022
+    inicio: 2022-04-01
+    fim: 2022-07-14
+    descricao: Bolsas globais em queda com juros americanos; Ibovespa segue.
+
+  - id: americanas_2023
+    nome: Americanas / crédito privado 2023
+    inicio: 2023-01-11
+    fim: 2023-03-23
+    descricao: Fraude na Americanas; resgates e abertura de spreads em crédito privado. Capturado pelo histórico direto, não pelo modelo de fatores.
+
+  - id: fiscal_2024
+    nome: Pacote fiscal e dólar 2024
+    inicio: 2024-10-01
+    fim: 2024-12-27
+    descricao: Dólar acima de R$ 6, curva de juros abre com decepção fiscal.
+
+  - id: tarifas_2025
+    nome: Tarifas EUA (abr/2025)
+    inicio: 2025-04-02
+    fim: 2025-04-08
+    descricao: Anúncio das tarifas americanas; sell-off global de risco.
+
+hipoteticos:
+  - id: bolsa_-20
+    nome: Bolsa -20%
+    choques: {IBOV: -20, SMLL: -25, SPX: -10}
+    descricao: Queda forte de bolsa local com contágio parcial nos EUA.
+
+  - id: juros_+200
+    nome: Curva de juros +200 bps
+    choques: {JURO_PRE: 2.0, JURO_REAL: 1.5}
+    descricao: Abertura paralela da curva pré e real.
+
+  - id: juros_-200
+    nome: Curva de juros -200 bps
+    choques: {JURO_PRE: -2.0, JURO_REAL: -1.5}
+    descricao: Fechamento da curva (cenário favorável a prefixados e IPCA+).
+
+  - id: dolar_+20
+    nome: Dólar +20%
+    choques: {USDBRL: 20, IBOV: -8}
+    descricao: Depreciação cambial com bolsa cedendo.
+
+  - id: risk_off_brasil
+    nome: Risk-off Brasil combinado
+    choques: {IBOV: -25, SMLL: -30, USDBRL: 15, JURO_PRE: 2.5, JURO_REAL: 1.5, SPX: -5}
+    descricao: "Choque doméstico completo (fiscal/político): bolsa, câmbio e curva ao mesmo tempo."
+
+  - id: risk_off_global
+    nome: Risk-off global
+    choques: {SPX: -25, IBOV: -20, SMLL: -25, USDBRL: 10, JURO_PRE: 1.0, JURO_REAL: 0.5}
+    descricao: Recessão global; bolsas caem, dólar sobe contra emergentes.
+
+  - id: rally_brasil
+    nome: Rally Brasil
+    choques: {IBOV: 15, SMLL: 20, USDBRL: -10, JURO_PRE: -1.5, JURO_REAL: -1.0}
+    descricao: "Cenário positivo (lado oposto): serve para ver assimetria da carteira."
