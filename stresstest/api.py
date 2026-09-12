@@ -108,7 +108,23 @@ def stress_carteira(posicoes: list[dict], caixa_cdi: float = 0.0, nome: str = "C
         "betas": _df(res.betas),
         "estatisticas": _df(res.estatisticas),
         "detalhe": _df(res.detalhe),
+        "risco": risco_json(res.risco),
         "avisos": res.avisos,
+    }
+
+
+def risco_json(rk: dict) -> dict:
+    """Bloco de risco (VaR/ES) em formato JSON-serializável."""
+    if not rk:
+        return {}
+    corr = rk.get("correlacao")
+    return {
+        "info": {k: painel_web._num(v) if not isinstance(v, (list, dict)) else v for k, v in rk["info"].items()},
+        "resumo": _df(rk["resumo"]),
+        "contrib_fundos": _df(rk["contrib_fundos"]),
+        "contrib_fatores": _df(rk["contrib_fatores"]),
+        "correlacao": {c: {k: painel_web._num(v) for k, v in corr[c].items()} for c in corr.columns} if corr is not None and not corr.empty else {},
+        "avisos": rk.get("avisos", []),
     }
 
 

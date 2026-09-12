@@ -30,9 +30,15 @@ Ibovespa e S&P 500 do Yahoo Finance e as curvas do Tesouro Direto.
 5. **P&L**: fundo = Σ beta × choque (+ CDI do período). Carteira = soma ponderada pelos pesos.
    Com `--metodo melhor` (padrão), o fundo usa o retorno real quando ele existia no cenário e o modelo
    caso contrário; a aba `Resumo` mostra que fração da carteira tem histórico real em cada cenário.
-6. **Saída**: resumo no terminal e um Excel com as abas `Resumo`, `Fundos x Cenarios`, `Detalhe`,
-   `Betas`, `Estatisticas` (vol, drawdown, pior 21 dias, VaR histórico), `Cenarios` (choques),
-   `Contribuicoes` (P&L da carteira por fator), `Fatores` e `Avisos`.
+6. **Risco da carteira (VaR / ES)**, em 21 pregões (e 1 pregão) a 95% e 99%, por dois métodos:
+   - *simulação histórica*: pesos atuais aplicados aos retornos reais dos fundos nos últimos 3 anos
+     (janela comum), buy-and-hold no horizonte; contribuição de cada fundo ao ES e correlação entre fundos;
+   - *paramétrico*: betas × covariância diária dos fatores + risco residual de cada fundo, normal;
+     contribuição por fundo e por fator.
+   Fundos sem histórico na janela ficam fora da simulação histórica (tratados como CDI, com aviso).
+7. **Saída**: resumo no terminal e um Excel com as abas `Resumo`, `Fundos x Cenarios`, `Detalhe`,
+   `Betas`, `Estatisticas` (vol, drawdown, pior 21 dias, VaR histórico por fundo), `Cenarios` (choques),
+   `Contribuicoes` (P&L da carteira por fator), `Risco Carteira`, `Correlacao`, `Fatores` e `Avisos`.
 
 ## Instalação
 
@@ -82,8 +88,9 @@ modelo de fatores continua cobrindo todos).
 `python -m stresstest exportar` calcula betas, estatísticas e retornos
 históricos de todos os fundos de `stresstest/universo.yaml` (ou de um YAML seu passado como argumento) e gera `saida/painel.html`: uma página
 única, sem servidor, em que você monta a carteira (fundos, pesos e caixa), vê o P&L por cenário,
-clica num cenário para ver a quebra por fundo e por fator, e cria cenários próprios com sliders
-de bolsa, S&P, dólar e juros. Para incluir um fundo novo, acrescente o CNPJ ao YAML e exporte de novo.
+clica num cenário para ver a quebra por fundo e por fator, cria cenários próprios com sliders
+de bolsa, S&P, dólar e juros, e vê o VaR/ES da carteira montada (histórico e paramétrico, com
+contribuição por fundo e por fator) calculado na própria página. Para incluir um fundo novo, acrescente o CNPJ ao YAML e exporte de novo.
 
 ## Testes
 
@@ -126,6 +133,7 @@ stresstest/
   modelo.py          regressão dos betas e estatísticas de risco
   cenarios.py        leitura do YAML de cenários
   motor.py           carteira, P&L por fundo/cenário, agregação
+  risco.py           VaR/ES da carteira: simulação histórica e paramétrico por fatores
   relatorio.py       resumo no terminal e Excel
   painel_web.py      exporta o painel interativo (usa painel_template.html)
   cli.py             comandos buscar / rodar / cenarios / fatores / atualizar

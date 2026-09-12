@@ -16,6 +16,7 @@ from . import motor
 from .cnpj import formatar, normalizar
 from .config import INICIO_PADRAO, JANELA_PADRAO_MESES
 from .fatores import FATORES, FATORES_PADRAO, painel as painel_fatores
+from . import risco as mod_risco
 
 log = logging.getLogger(__name__)
 TEMPLATE = Path(__file__).resolve().parent / "painel_template.html"
@@ -49,10 +50,20 @@ def dados_universo(universo: str | Path, janela_meses: int = JANELA_PADRAO_MESES
     lista = mod_cenarios.carregar(cenarios_yaml)
     fat = FATORES_PADRAO
     painel = painel_fatores(f"{inicio_dados}-01" if len(inicio_dados) == 7 else inicio_dados)
+    from .dados import cvm
+    from . import modelo as mod_modelo
+    cotas = cvm.cotas([p.cnpj for p in posicoes], inicio_dados)
     res = motor.rodar(carteira, lista, fatores=fat, janela_meses=janela_meses,
-                      inicio_dados=inicio_dados, metodo="melhor", painel=painel)
+                      inicio_dados=inicio_dados, metodo="melhor", painel=painel, cotas=cotas)
+    rets_por_fundo = {c: mod_modelo.retornos(cotas[c])[0] for c in cotas.columns}
 
     cdi_dia = float(painel["CDI"].dropna().iloc[-1])
+    # dados de risco: covariância diária dos fatores (3 anos) e retornos diários dos fundos nos mesmos 3 anos
+    fim_p = painel.index.max()
+    jan = painel.loc[painel.index > fim_p - pd.DateOffset(years=mod_risco.JANELA_ANOS_PADRAO)]
+    cov_f = jan[fat].dropna().cov()
+    datas_risco = [d for d in jan.index if d <= pd.Timestamp(res.estatisticas["fim_serie"].max())]
+    cdi_risco = [round(float(v), 7) if v == v else None for v in jan["CDI"].reindex(datas_risco)]
     cen_out = []
     for c in lista:
         ch = res.choques.loc[c.id]
@@ -79,9 +90,13 @@ def dados_universo(universo: str | Path, janela_meses: int = JANELA_PADRAO_MESES
             b = betas.loc[cnpj_f]
             item["betas"] = {f: _num(b[f]) for f in fat}
             item["r2"] = _num(b["r2"]); item["n_obs"] = _num(b["n_obs"])
+            item["vol_resid"] = _num(b["vol_residual_anual"] / np.sqrt(252))
             item["janela"] = [str(b["janela_inicio"]), str(b["janela_fim"])]
         else:
             item["betas"] = None
+        if pos.cnpj in rets_por_fundo:
+            rr = rets_por_fundo[pos.cnpj].reindex(datas_risco)
+            item["ret3a"] = [round(float(v), 6) if v == v else None for v in rr]
         if cnpj_f in stats.index:
             s = stats.loc[cnpj_f]
             item["stats"] = {k: _num(s.get(k)) for k in ("inicio_serie", "fim_serie", "vol_anual", "max_drawdown",
@@ -97,6 +112,9 @@ def dados_universo(universo: str | Path, janela_meses: int = JANELA_PADRAO_MESES
         "fatores": [{"id": f, **FATORES[f]} for f in fat],
         "grupos": [g["nome"] for g in doc["grupos"]],
         "cenarios": cen_out, "fundos": fundos_out, "exemplo": exemplo,
+        "risco": {"horizonte": mod_risco.HORIZONTE_PADRAO, "niveis": list(mod_risco.NIVEIS_PADRAO),
+                  "janela_anos": mod_risco.JANELA_ANOS_PADRAO, "datas": [str(d.date()) for d in datas_risco],
+                  "cdi": cdi_risco, "cov_fatores": {a: {b: _num(cov_f.loc[a, b]) for b in fat} for a in fat}},
     }
 
 

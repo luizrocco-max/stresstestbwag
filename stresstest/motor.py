@@ -11,6 +11,7 @@ import yaml
 
 from . import cenarios as mod_cenarios
 from . import modelo as mod_modelo
+from . import risco as mod_risco
 from .cnpj import formatar, normalizar
 from .config import INICIO_PADRAO, JANELA_PADRAO_MESES
 from .dados import cvm
@@ -81,6 +82,7 @@ class Resultado:
     carteira_cenarios: pd.DataFrame # cenário -> P&L da carteira
     contribuicoes: pd.DataFrame     # cenário x fator (carteira)
     avisos: list[str]
+    risco: dict = field(default_factory=dict)  # VaR/ES da carteira (ver risco.py)
 
 
 def _retorno_janela(cota: pd.Series, inicio, fim) -> float:
@@ -97,7 +99,9 @@ def _retorno_janela(cota: pd.Series, inicio, fim) -> float:
 def rodar(carteira: Carteira, lista_cenarios: list[mod_cenarios.Cenario] | None = None,
           fatores: list[str] | None = None, janela_meses: int = JANELA_PADRAO_MESES,
           inicio_dados: str = INICIO_PADRAO, metodo: str = "melhor",
-          painel: pd.DataFrame | None = None, cotas: pd.DataFrame | None = None) -> Resultado:
+          painel: pd.DataFrame | None = None, cotas: pd.DataFrame | None = None,
+          risco_horizonte: int = mod_risco.HORIZONTE_PADRAO, risco_niveis: tuple[float, ...] = mod_risco.NIVEIS_PADRAO,
+          risco_janela_anos: int = mod_risco.JANELA_ANOS_PADRAO) -> Resultado:
     """Executa o stress test.
 
     metodo: "melhor" usa o retorno histórico real do fundo quando ele existia no cenário e o
@@ -226,6 +230,21 @@ def rodar(carteira: Carteira, lista_cenarios: list[mod_cenarios.Cenario] | None 
     carteira_df = pd.DataFrame(linhas_c).set_index("cenario_id")
     contrib_df = pd.DataFrame(linhas_contrib).set_index("cenario_id")
 
+    # ----------------------------------------------------------------- risco (VaR / ES)
+    betas_idx = pd.DataFrame({k: m.betas for k, m in modelos.items() if m is not None}).T
+    vol_res = pd.Series({k: m.vol_residual_diaria for k, m in modelos.items() if m is not None}, dtype=float)
+    peso_cdi = sum(p.peso for p in carteira.posicoes if p.tipo == "cdi")
+    pesos_f = {p.cnpj: p.peso for p in carteira.fundos}
+    nomes = {p.cnpj: p.nome for p in carteira.fundos}
+    try:
+        risco = mod_risco.risco_carteira(rets, betas_idx, vol_res, pesos_f, peso_cdi, painel, fatores, nomes,
+                                         horizonte=risco_horizonte, niveis=risco_niveis, janela_anos=risco_janela_anos)
+        avisos += [f"risco: {a}" for a in risco["avisos"]]
+    except Exception as e:  # noqa: BLE001
+        log.exception("falha no cálculo de risco")
+        risco = {}
+        avisos.append(f"risco da carteira não calculado: {e}")
+
     return Resultado(carteira=carteira, fatores=fatores, fundos=fundos_df, betas=betas_df,
                      estatisticas=stats_df, choques=choques_df, detalhe=detalhe, matriz=matriz,
-                     carteira_cenarios=carteira_df, contribuicoes=contrib_df, avisos=avisos)
+                     carteira_cenarios=carteira_df, contribuicoes=contrib_df, avisos=avisos, risco=risco)

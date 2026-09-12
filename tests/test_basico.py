@@ -164,27 +164,35 @@ def test_painel_paridade_colunas_antigas():
     assert p["SPREAD_CRED"].notna().sum() > 100
 
 
-def test_rodar_paridade_com_golden():
-    """(ii) betas e choques com os fatores padrão idênticos aos de antes da mudança."""
+def test_rodar_paridade_com_golden(monkeypatch):
+    """(ii) betas, choques e P&L com os fatores padrão idênticos aos da referência.
+
+    Insumos congelados em tests/fixtures (painel e cotas até a data-base), então o teste não
+    depende de rede nem de revisões posteriores da CVM/Yahoo."""
     import json
     from pathlib import Path
-    _painel_real_ou_skip()
+    fx = Path(__file__).parent / "fixtures"
     g = json.loads((Path(__file__).parent / "golden_exemplo.json").read_text(encoding="utf-8"))
+    painel = pd.read_parquet(fx / "painel.parquet")
+    cot = pd.read_parquet(fx / "cotas.parquet")
+    monkeypatch.setattr(cvm, "info", lambda c: {"nome": "", "gestor": "", "classe_cvm": "", "classe_anbima": "", "situacao": ""})
     cart = motor.carregar_carteira(Path(__file__).parent.parent / "carteiras" / "exemplo.yaml")
     cart.data_base = g["data_base"]
-    res = motor.rodar(cart, cenarios.carregar())
+    res = motor.rodar(cart, cenarios.carregar(), painel=painel, cotas=cot)
     assert res.fatores == g["fatores"]
     for r in res.betas.to_dict("records"):
         esperado = g["betas"][r["cnpj"]]
         for f in g["fatores"]:
             assert r[f] == pytest.approx(esperado[f], abs=1e-9), (r["cnpj"], f)
         assert r["r2"] == pytest.approx(esperado["r2"], abs=1e-9)
-    # cenários novos (ex.: credito_+200) podem existir; os antigos têm que bater valor a valor
+    # cenários novos podem existir; os da referência têm que bater valor a valor
     assert set(g["choques"]) <= set(res.choques.index)
     for cid in g["choques"]:
         for f in g["fatores"] + ["CDI"]:
             assert res.choques.loc[cid, f] == pytest.approx(g["choques"][cid][f], abs=1e-9), (cid, f)
         assert res.carteira_cenarios.loc[cid, "pl_carteira"] == pytest.approx(g["pl_carteira"][cid], abs=1e-9), cid
+    # o bloco de risco vem junto sem alterar o resto
+    assert res.risco["info"]["hist_ok"] and res.risco["info"]["param_ok"]
 
 
 def test_choque_spread_janelas():
@@ -220,3 +228,57 @@ def test_motor_fator_sem_dado_vira_zero_no_pl(painel_sintetico, monkeypatch):
     assert res.carteira_cenarios.loc["h", "fatores_sem_dado"] == "SPREAD_CRED"
     assert not np.isnan(res.carteira_cenarios.loc["h", "pl_carteira"])
     assert any("SPREAD_CRED" in a for a in res.avisos)
+
+
+# ----------------------------------------------------------------------------- risco (VaR / ES)
+def test_risco_parametrico_um_fundo(painel_sintetico):
+    """Um fundo com beta 1 no IBOV e residual 0: VaR = z * vol(IBOV) * sqrt(h) * peso."""
+    from scipy.stats import norm
+    from stresstest import risco
+    p = painel_sintetico
+    betas = pd.DataFrame({"IBOV": [1.0], "SPX": [0.0], "USDBRL": [0.0], "JURO_PRE": [0.0], "JURO_REAL": [0.0]}, index=["A"])
+    r = risco.parametrico(betas, pd.Series({"A": 0.0}), {"A": 0.5}, p, fatores.FATORES_PADRAO, horizonte=21, niveis=(0.95,))
+    assert r["ok"]
+    vol = p["IBOV"].iloc[-len(r["cov_fatores"]) :].std() if False else np.sqrt(r["cov_fatores"].loc["IBOV", "IBOV"])
+    esperado = norm.ppf(0.95) * 0.5 * vol * np.sqrt(21)
+    v = [x for x in r["resumo"] if x["horizonte"] == 21][0]
+    assert v["var"] == pytest.approx(esperado, rel=1e-9)
+    assert r["fracao_fator"]["IBOV"] == pytest.approx(1.0) and r["fracao_fator"]["residual"] == pytest.approx(0.0)
+    assert sum(r["contrib"][0.95]["contrib_var"].values()) == pytest.approx(v["var"])
+
+
+def test_risco_historico_soma_e_um_fundo(painel_sintetico):
+    from stresstest import risco
+    p = painel_sintetico
+    ra, _ = modelo.retornos(cotas_de(p, beta_ibov=1.0, beta_pre=0.0, seed=5))
+    rb, _ = modelo.retornos(cotas_de(p, beta_ibov=0.0, beta_pre=-0.02, seed=6))
+    # 1 fundo, 100%: VaR da carteira = VaR do fundo
+    r1 = risco.simulacao_historica({"A": ra}, {"A": 1.0}, 0.0, p["CDI"], horizonte=21, niveis=(0.95,), janela_anos=3)
+    assert r1["ok"]
+    rh = (np.exp(np.log1p(ra.loc[ra.index > ra.index.max() - pd.DateOffset(years=3)]).rolling(21).sum()) - 1).dropna()
+    assert [x for x in r1["resumo"] if x["horizonte"] == 21][0]["var"] == pytest.approx(-np.percentile(rh, 5), rel=1e-9)
+    # 2 fundos + caixa: contribuições ao ES somam o ES
+    r2 = risco.simulacao_historica({"A": ra, "B": rb}, {"A": 0.4, "B": 0.4}, 0.2, p["CDI"], horizonte=21, niveis=(0.95,))
+    es = [x for x in r2["resumo"] if x["horizonte"] == 21][0]["es"]
+    c = r2["contrib"][0.95]
+    assert sum(c["contrib_es"].values()) + c["contrib_es_cdi"] == pytest.approx(es, rel=1e-9)
+    assert r2["correlacao"].shape == (2, 2)
+
+
+def test_rodar_traz_risco(painel_sintetico, monkeypatch):
+    monkeypatch.setattr(cvm, "info", lambda c: {"nome": "F", "gestor": "G", "classe_cvm": "", "classe_anbima": "", "situacao": ""})
+    p = painel_sintetico
+    cotas = pd.DataFrame({"11111111000111": cotas_de(p, beta_ibov=1.0, beta_pre=0.0, seed=2),
+                          "22222222000122": cotas_de(p, beta_ibov=0.0, beta_pre=-0.03, seed=3)})
+    cart = motor.Carteira(nome="T", posicoes=[motor.Posicao("11111111000111", "A", 0.5), motor.Posicao("22222222000122", "B", 0.3),
+                                              motor.Posicao("CDI", "Caixa", 0.2, tipo="cdi")])
+    lista = [cenarios.Cenario(id="b", nome="Bolsa -20", tipo="hipotetico", choques={"IBOV": -0.20})]
+    res = motor.rodar(cart, lista, painel=p, cotas=cotas)
+    rk = res.risco
+    assert rk["info"]["hist_ok"] and rk["info"]["param_ok"]
+    assert set(rk["resumo"]["metodo"]) == {"histórico", "paramétrico"}
+    assert rk["contrib_fundos"]["contrib_var_param"].sum() == pytest.approx(rk["info"]["var_param"], rel=1e-9)
+    assert "Caixa / CDI" in set(rk["contrib_fundos"]["nome"])
+    from stresstest import api
+    import json
+    json.dumps(api.risco_json(rk))

@@ -73,6 +73,7 @@ res = api.stress_carteira(
 | `fundos` | cadastro de cada fundo (nome, gestor, classe) e peso |
 | `betas` | por fundo: betas, `t_<fator>`, `r2`, `alpha_anual`, `vol_residual_anual`, `n_obs`, janela |
 | `estatisticas` | por fundo: `vol_anual`, `max_drawdown`, `pior_dia`, `pior_21d`, `var95_21d`, `es95_21d`, `ret_12m`, `ret_36m`, `sharpe_12m`, início/fim da série |
+| `risco` | VaR/ES da carteira (ver abaixo) |
 | `detalhe` | uma linha por fundo x cenário: `modelo_excesso`, `cdi`, `modelo_total`, `historico`, `usado`, `fonte` (`histórico`/`modelo`/`cdi`) |
 | `avisos` | strings: R² baixo, histórico curto, fundo sem cotas, pesos normalizados... |
 
@@ -144,6 +145,30 @@ CLI num job e sirva o HTML/JSON estático.
   acesso a Economatica/ANBIMA, esses fatores podem ser adicionados em `stresstest/fatores.py`
   (uma coluna a mais no painel e uma entrada em `FATORES`).
 - É simulação quantitativa, não recomendação de investimento; o rodapé do painel já diz isso.
+
+## Risco da carteira: `res["risco"]`
+
+Calculado em `stress_carteira` (e em `motor.rodar`, campo `Resultado.risco`). Parâmetros de `rodar`:
+`risco_horizonte=21`, `risco_niveis=(0.95, 0.99)`, `risco_janela_anos=3`.
+
+| Chave | Conteúdo |
+|---|---|
+| `resumo` | uma linha por método (`histórico` / `paramétrico`) x horizonte (1 e 21 pregões) x nível: `var`, `es` (fração, positivo = perda), `n_obs` |
+| `contrib_fundos` | por posição (inclui `Caixa / CDI`): `peso`, `var_isolado_hist`, `contrib_es_hist` (soma = ES histórico), `var_isolado_param`, `contrib_var_param` (soma = VaR paramétrico), `fracao_risco_param` |
+| `contrib_fatores` | paramétrico: `contrib_var_param` e `fracao` da variância por fator + `residual` |
+| `correlacao` | matriz de correlação dos retornos diários dos fundos na janela histórica |
+| `info` | `hist_ok`, `param_ok`, `hist_janela`, `hist_n_obs`, `vol_anual_hist`, `vol_anual_param`, `pior_h_hist`, `var_hist`, `var_param`, `soma_var_isolado_*`, `betas_carteira` |
+| `avisos` | histórico comum curto, peso sem histórico tratado como CDI etc. |
+
+Métodos: **histórico** = pesos atuais aplicados aos retornos reais dos fundos numa janela comum de 3 anos,
+retorno de h pregões composto fundo a fundo (buy-and-hold), VaR = percentil, ES = média da cauda;
+**paramétrico** = covariância dos fundos `B Σ_f Bᵀ + diag(σ_resid²)` com os betas do stress e a
+covariância diária dos fatores nos mesmos 3 anos, VaR = z·σ·√h, ES = σ√h·φ(z)/(1-α), contribuições pela
+decomposição da variância. O painel interativo (`painel_template.html`) calcula os dois no navegador a
+partir do JSON (`risco.cov_fatores`, `risco.cdi`, `risco.datas` e, por fundo, `vol_resid` e `ret3a`).
+
+Limitações: normalidade no paramétrico (subestima cauda); crédito privado com cota suavizada tem
+risco baixo nos dois métodos; a janela histórica exclui fundos mais jovens que ela.
 
 ## Fator opcional `SPREAD_CRED` (spread de crédito privado)
 

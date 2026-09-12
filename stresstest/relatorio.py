@@ -154,6 +154,61 @@ def excel(res: Resultado, caminho: str | Path) -> Path:
         contrib.to_excel(xw, sheet_name="Contribuicoes", index=False)
         _formatar_aba(xw.sheets["Contribuicoes"], set(fat) | {"CDI", "total_modelo"})
 
+        # Risco da carteira (VaR / ES)
+        rk = res.risco or {}
+        if rk.get("resumo") is not None and not rk["resumo"].empty:
+            info = rk["info"]
+            resumo_r = rk["resumo"].copy()
+            resumo_r["nivel"] = resumo_r["nivel"].map(lambda v: f"{v:.0%}")
+            resumo_r = resumo_r.rename(columns={"var": "VaR", "es": "ES"})
+            resumo_r.to_excel(xw, sheet_name="Risco Carteira", index=False)
+            ws = xw.sheets["Risco Carteira"]
+            _formatar_aba(ws, {"VaR", "ES"})
+            linha = ws.max_row + 2
+            notas = [
+                ("Horizonte (pregões) e níveis", f"{info['horizonte']} · {' / '.join(f'{n:.0%}' for n in info['niveis'])}"),
+                ("Janela histórica", f"{info['hist_janela'][0]} a {info['hist_janela'][1]} ({info['hist_n_obs']} pregões)" if info.get("hist_ok") else "não calculada"),
+                ("Vol anualizada da carteira (histórica / paramétrica)", f"{(info.get('vol_anual_hist') or 0):.1%} / {(info.get('vol_anual_param') or 0):.1%}"),
+                (f"Pior janela de {info['horizonte']} pregões na janela histórica", f"{(info.get('pior_h_hist') or 0):+.1%}"),
+                ("Soma dos VaR isolados (hist / param) vs VaR da carteira", f"{info.get('soma_var_isolado_hist', 0):.2%} / {info.get('soma_var_isolado_param', 0):.2%} vs {info.get('var_hist', 0):.2%} / {info.get('var_param', 0):.2%}"),
+                ("Betas da carteira", ", ".join(f"{k}: {v:+.3f}" for k, v in (info.get("betas_carteira") or {}).items())),
+                ("Leitura", "Histórico: pesos atuais aplicados aos retornos reais, buy-and-hold no horizonte. Paramétrico: betas x covariância dos fatores + risco residual, normal. VaR/ES positivos = perda."),
+            ]
+            for i, (k, v) in enumerate(notas):
+                ws.cell(row=linha + i, column=1, value=k).font = Font(bold=True)
+                ws.cell(row=linha + i, column=2, value=v)
+            linha += len(notas) + 2
+            cf = rk["contrib_fundos"]
+            if not cf.empty:
+                cf.to_excel(xw, sheet_name="Risco Carteira", index=False, startrow=linha - 1)
+                for c in ws[linha]:
+                    c.font = Font(bold=True, color="FFFFFF"); c.fill = PatternFill("solid", fgColor=AZUL)
+                for j, nome in enumerate(cf.columns, start=1):
+                    if nome in ("peso", "var_isolado_hist", "contrib_es_hist", "var_isolado_param", "contrib_var_param", "fracao_risco_param"):
+                        for rr in range(linha + 1, linha + 1 + len(cf)):
+                            ws.cell(row=rr, column=j).number_format = "0.00%"
+                linha += len(cf) + 3
+            cfa = rk["contrib_fatores"]
+            if not cfa.empty:
+                cfa.to_excel(xw, sheet_name="Risco Carteira", index=False, startrow=linha - 1)
+                for c in ws[linha]:
+                    c.font = Font(bold=True, color="FFFFFF"); c.fill = PatternFill("solid", fgColor=AZUL)
+                for rr in range(linha + 1, linha + 1 + len(cfa)):
+                    ws.cell(row=rr, column=2).number_format = "0.00%"; ws.cell(row=rr, column=3).number_format = "0.0%"
+            ws.column_dimensions["A"].width = 44; ws.column_dimensions["B"].width = 34
+            corr = rk.get("correlacao")
+            if corr is not None and not corr.empty:
+                nomes = {p.cnpj: p.nome for p in res.carteira.posicoes}
+                c2 = corr.rename(index=nomes, columns=nomes)
+                c2.to_excel(xw, sheet_name="Correlacao")
+                wsc = xw.sheets["Correlacao"]
+                wsc.column_dimensions["A"].width = 30
+                for row in wsc.iter_rows(min_row=2, min_col=2):
+                    for c in row:
+                        c.number_format = "0.00"
+                wsc.conditional_formatting.add(f"B2:{get_column_letter(wsc.max_column)}{wsc.max_row}",
+                                               CellIsRule(operator="greaterThan", formula=["0.7"], font=Font(color=VERMELHO)))
+
         # Fatores (legenda) e avisos
         leg = pd.DataFrame([{"fator": k, "descricao": v["nome"], "tipo": v["tipo"], "unidade_do_choque": v["unidade"],
                              "leitura_do_beta": ("retorno do fundo por 1% do fator (0,5 = metade do índice)" if v["tipo"] == "retorno"

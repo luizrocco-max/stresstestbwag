@@ -93,8 +93,9 @@ input[type=number] { width: 68px; text-align: right; font-family: "IBM Plex Mono
 .painel > h2 { margin-bottom: 4px; }
 .painel .sub { color: var(--ink-2); margin: 0 0 12px; font-size: 13px; }
 
-.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-@media (max-width: 720px) { .kpis { grid-template-columns: 1fr; } }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 1100px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .kpis { grid-template-columns: 1fr; } }
 .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); }
 .kpi-v { font-size: 28px; font-weight: 500; line-height: 1.1; margin: 6px 0 4px; }
 .kpi-v.dn { color: var(--loss); } .kpi-v.up { color: var(--gain); }
@@ -154,6 +155,15 @@ td .dn { color: var(--loss); } td .up { color: var(--gain); }
 .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
 .presets button { font-size: 12px; padding: 4px 8px; }
 
+.risco-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 14px; }
+@media (max-width: 760px) { .risco-grid { grid-template-columns: 1fr; } }
+.risco-card { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.risco-card h3 { margin-bottom: 6px; }
+.risco-card table { font-size: 13px; }
+.risco-card td, .risco-card th { padding: 4px 6px; }
+.risco-nota { font-size: 12px; color: var(--ink-3); margin: 6px 0 0; line-height: 1.4; }
+.risco-det { display: grid; grid-template-columns: minmax(0, 3fr) minmax(240px, 2fr); gap: 20px; }
+@media (max-width: 860px) { .risco-det { grid-template-columns: 1fr; } }
 .univ td.nm { white-space: nowrap; }
 .univ th.sort { cursor: pointer; }
 .univ th.sort:hover { color: var(--ink); }
@@ -205,6 +215,7 @@ footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 
       <div class="kpi"><span class="eyebrow">Pior cenário histórico</span><div class="kpi-v" id="k1"></div><small id="k1s"></small></div>
       <div class="kpi"><span class="eyebrow">Pior cenário hipotético</span><div class="kpi-v" id="k2"></div><small id="k2s"></small></div>
       <div class="kpi"><span class="eyebrow">Cenário próprio</span><div class="kpi-v" id="k3"></div><small id="k3s"></small></div>
+      <div class="kpi"><span class="eyebrow" id="k4t">VaR 95% · 21 pregões</span><div class="kpi-v" id="k4"></div><small id="k4s"></small></div>
     </div>
 
     <div class="painel">
@@ -243,6 +254,32 @@ footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 
         <div><span class="eyebrow">Pior posição</span><div id="c-pior" style="font-weight:500"></div></div>
       </div>
       <div class="tbl-wrap" style="margin-top:12px"><table id="c-tab"><thead><tr><th>Posição</th><th class="n">Peso</th><th class="n">P&amp;L</th><th class="n">Contrib.</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div class="painel" id="risco">
+      <h2>Risco da carteira</h2>
+      <p class="sub" id="risco-sub"></p>
+      <div class="risco-grid">
+        <div class="risco-card">
+          <h3>Simulação histórica</h3>
+          <table><thead><tr><th></th><th class="n">VaR 95%</th><th class="n">ES 95%</th><th class="n">VaR 99%</th><th class="n">ES 99%</th></tr></thead><tbody id="rh-tab"></tbody></table>
+          <p class="risco-nota" id="rh-nota"></p>
+        </div>
+        <div class="risco-card">
+          <h3>Paramétrico (modelo de fatores)</h3>
+          <table><thead><tr><th></th><th class="n">VaR 95%</th><th class="n">ES 95%</th><th class="n">VaR 99%</th><th class="n">ES 99%</th></tr></thead><tbody id="rp-tab"></tbody></table>
+          <p class="risco-nota" id="rp-nota"></p>
+        </div>
+      </div>
+      <div class="risco-det">
+        <div class="tbl-wrap"><table id="rc-tab"><thead><tr><th>Posição</th><th class="n">Peso</th><th class="n">VaR isolado (hist.)</th><th class="n">Contrib. ES (hist.)</th><th class="n">Contrib. VaR (param.)</th><th class="n">% do risco</th></tr></thead><tbody></tbody></table></div>
+        <div>
+          <h3>Risco por fator (paramétrico)</h3>
+          <p class="sub">Fração da variância da carteira explicada por cada fator; o residual é o risco próprio dos fundos.</p>
+          <div class="contrib" id="rf-contrib"></div>
+        </div>
+      </div>
+      <p class="risco-nota">VaR e ES em fração do patrimônio, positivos = perda, no horizonte de 21 pregões (e 1 pregão). Histórico: pesos atuais aplicados aos retornos reais dos fundos nos últimos 3 anos, buy-and-hold no horizonte. Paramétrico: betas × covariância dos fatores + risco residual, distribuição normal. Crédito privado com cota suavizada aparece com risco baixo nos dois métodos.</p>
     </div>
 
     <div class="painel univ">
@@ -503,6 +540,127 @@ footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 
     document.getElementById('k3s').textContent = FAT.filter(k => LIM[k]).map(k => `${FNOME[k]} ${((custom[k] || 0) > 0 ? '+' : '') + (custom[k] || 0) + LIM[k][3].trim()}`).join(' · ');
   }
 
+  // ---------------------------------------------------------------- risco (VaR / ES)
+  const R = D.risco || null;
+  const Z = { 0.95: 1.6448536269514722, 0.99: 2.3263478740408408 };
+  const PHI = z => Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI);
+  function percentil(arr, q) {  // igual ao numpy 'linear'
+    const a = arr.slice().sort((x, y) => x - y), n = a.length;
+    if (!n) return NaN;
+    const pos = q * (n - 1), lo = Math.floor(pos), hi = Math.ceil(pos);
+    return a[lo] + (a[hi] - a[lo]) * (pos - lo);
+  }
+  function riscoParam() {
+    if (!R) return null;
+    const { w, wc } = pesos();
+    const fs = carteira.fundos.map(p => byCnpj[p.cnpj]).filter(f => f.betas && w[f.cnpj] > 0);
+    if (!fs.length) return null;
+    const n = fs.length, cov = Array.from({ length: n }, () => new Array(n).fill(0));
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      let v = 0;
+      for (const a of FAT) for (const b of FAT) v += (fs[i].betas[a] || 0) * (R.cov_fatores[a][b] || 0) * (fs[j].betas[b] || 0);
+      if (i === j) v += Math.pow(fs[i].vol_resid || 0, 2);
+      cov[i][j] = v;
+    }
+    const ws = fs.map(f => w[f.cnpj]);
+    const covw = cov.map(row => row.reduce((s, v, j) => s + v * ws[j], 0));
+    const varp = ws.reduce((s, wi, i) => s + wi * covw[i], 0);
+    if (varp <= 0) return null;
+    const sig = Math.sqrt(varp);
+    const bport = {}; for (const a of FAT) bport[a] = fs.reduce((s, f, i) => s + ws[i] * (f.betas[a] || 0), 0);
+    const fracF = {}; for (const a of FAT) { let v = 0; for (const b of FAT) v += bport[a] * R.cov_fatores[a][b] * bport[b]; fracF[a] = v / varp; }
+    fracF.residual = fs.reduce((s, f, i) => s + ws[i] * ws[i] * Math.pow(f.vol_resid || 0, 2), 0) / varp;
+    const h = R.horizonte, out = { sig, res: {}, fracF, fundos: {} };
+    for (const hh of [1, h]) for (const a of R.niveis) {
+      const z = Z[a] || 1.645, s = sig * Math.sqrt(hh);
+      out.res[`${hh}_${a}`] = { var: z * s, es: s * PHI(z) / (1 - a) };
+    }
+    const var95 = out.res[`${h}_${R.niveis[0]}`].var, z0 = Z[R.niveis[0]];
+    fs.forEach((f, i) => { out.fundos[f.cnpj] = { frac: ws[i] * covw[i] / varp, contrib: ws[i] * covw[i] / varp * var95, isolado: z0 * Math.sqrt(cov[i][i]) * ws[i] * Math.sqrt(h) }; });
+    out.somaIsolado = Object.values(out.fundos).reduce((s, x) => s + x.isolado, 0);
+    return out;
+  }
+  function riscoHist() {
+    if (!R || !R.datas) return null;
+    const { w, wc } = pesos();
+    const fs = carteira.fundos.map(p => byCnpj[p.cnpj]).filter(f => f.ret3a && w[f.cnpj] > 0);
+    if (!fs.length) return null;
+    const T = R.datas.length, ok = [];
+    for (let t = 0; t < T; t++) if (fs.every(f => f.ret3a[t] !== null && f.ret3a[t] !== undefined) && R.cdi[t] !== null) ok.push(t);
+    if (ok.length < 60) return { curto: true, n: ok.length };
+    const pesoFora = Math.max(0, 1 - fs.reduce((s, f) => s + w[f.cnpj], 0) - wc);
+    const h = R.horizonte, n = ok.length;
+    const S = fs.map(f => { const s = [0]; for (const t of ok) s.push(s[s.length - 1] + Math.log1p(f.ret3a[t])); return s; });
+    const Sc = [0]; for (const t of ok) Sc.push(Sc[Sc.length - 1] + Math.log1p(R.cdi[t]));
+    const out = { res: {}, fundos: {}, n, inicio: R.datas[ok[0]], fim: R.datas[ok[n - 1]] };
+    for (const hh of [1, h]) {
+      const parc = fs.map(() => []), rp = [];
+      for (let k = hh; k <= n; k++) {
+        let tot = (wc + pesoFora) * (Math.exp(Sc[k] - Sc[k - hh]) - 1);
+        fs.forEach((f, i) => { const v = w[f.cnpj] * (Math.exp(S[i][k] - S[i][k - hh]) - 1); parc[i].push(v); tot += v; });
+        rp.push(tot);
+      }
+      for (const a of R.niveis) {
+        const v = -percentil(rp, 1 - a);
+        const idx = rp.map((x, i) => x <= -v ? i : -1).filter(i => i >= 0);
+        const es = idx.length ? -idx.reduce((s, i) => s + rp[i], 0) / idx.length : v;
+        out.res[`${hh}_${a}`] = { var: v, es };
+        if (hh === h && a === R.niveis[0]) {
+          fs.forEach((f, i) => { out.fundos[f.cnpj] = { isolado: -percentil(parc[i], 1 - a), contribEs: idx.length ? -idx.reduce((s, j) => s + parc[i][j], 0) / idx.length : 0 }; });
+          const cdiParc = idx.length ? -idx.reduce((s, j) => { const k = j + hh; return s + (wc + pesoFora) * (Math.exp(Sc[k] - Sc[k - hh]) - 1); }, 0) / idx.length : 0;
+          out.fundos.CDI = { isolado: 0, contribEs: cdiParc };
+        }
+      }
+    }
+    out.somaIsolado = fs.reduce((s, f) => s + out.fundos[f.cnpj].isolado, 0);
+    out.pesoFora = pesoFora;
+    return out;
+  }
+  function renderRisco() {
+    const el = document.getElementById('risco');
+    if (!R) { el.hidden = true; return; }
+    el.hidden = false;
+    const hist = riscoHist(), par = riscoParam(), h = R.horizonte, a0 = R.niveis[0], a1 = R.niveis[1] || R.niveis[0];
+    document.getElementById('risco-sub').textContent = `Perda máxima esperada da carteira em ${h} pregões, com ${Math.round(a0 * 100)}% e ${Math.round(a1 * 100)}% de confiança, por dois métodos que se conferem.`;
+    const linha = (res, hh) => res ? `<tr><td>${hh} pregão${hh > 1 ? 'es' : ''}</td><td class="n"><span class="dn">${pct.format(-res[`${hh}_${a0}`].var)}</span></td><td class="n"><span class="dn">${pct.format(-res[`${hh}_${a0}`].es)}</span></td><td class="n"><span class="dn">${pct.format(-res[`${hh}_${a1}`].var)}</span></td><td class="n"><span class="dn">${pct.format(-res[`${hh}_${a1}`].es)}</span></td></tr>` : '';
+    const rh = document.getElementById('rh-tab'), rp = document.getElementById('rp-tab');
+    if (hist && !hist.curto) {
+      rh.innerHTML = linha(hist.res, h) + linha(hist.res, 1);
+      document.getElementById('rh-nota').textContent = `Janela comum ${fmtData(hist.inicio)} a ${fmtData(hist.fim)} (${hist.n} pregões). Soma dos VaR isolados ${pct1.format(hist.somaIsolado)} vs carteira ${pct1.format(hist.res[`${h}_${a0}`].var)}: diversificação de ${pct1.format(hist.somaIsolado - hist.res[`${h}_${a0}`].var)}.` + (hist.pesoFora > 0.005 ? ` ${pct0.format(hist.pesoFora)} da carteira sem histórico tratado como CDI.` : '');
+    } else {
+      rh.innerHTML = '<tr><td colspan="5">Sem histórico comum suficiente' + (hist && hist.curto ? ` (${hist.n} pregões)` : '') + '.</td></tr>';
+      document.getElementById('rh-nota').textContent = '';
+    }
+    if (par) {
+      rp.innerHTML = linha(par.res, h) + linha(par.res, 1);
+      document.getElementById('rp-nota').textContent = `Vol anualizada da carteira ${pct1.format(par.sig * Math.sqrt(252))}. Soma dos VaR isolados ${pct1.format(par.somaIsolado)} vs carteira ${pct1.format(par.res[`${h}_${a0}`].var)}.`;
+    } else { rp.innerHTML = '<tr><td colspan="5">Sem fundos com betas.</td></tr>'; document.getElementById('rp-nota').textContent = ''; }
+    // tabela por posição
+    const { w, wc } = pesos();
+    const rows = carteira.fundos.map(p => ({ f: byCnpj[p.cnpj], peso: w[p.cnpj] })).filter(x => x.peso > 0);
+    rows.sort((x, y) => ((par && par.fundos[y.f.cnpj]) ? par.fundos[y.f.cnpj].contrib : 0) - ((par && par.fundos[x.f.cnpj]) ? par.fundos[x.f.cnpj].contrib : 0));
+    const cel = v => v === null || v === undefined || Number.isNaN(v) ? '—' : `<span class="${v > 0.00005 ? 'dn' : ''}">${pct.format(-v)}</span>`;
+    let html = rows.map(({ f, peso }) => {
+      const hf = hist && !hist.curto ? hist.fundos[f.cnpj] : null, pf = par ? par.fundos[f.cnpj] : null;
+      return `<tr><td>${esc(f.nome)}</td><td class="n">${pct1.format(peso)}</td><td class="n">${cel(hf ? hf.isolado : null)}</td><td class="n">${cel(hf ? hf.contribEs : null)}</td><td class="n">${cel(pf ? pf.contrib : null)}</td><td class="n">${pf ? pct0.format(pf.frac) : '—'}</td></tr>`;
+    }).join('');
+    if (wc > 0) html += `<tr><td>Caixa / CDI</td><td class="n">${pct1.format(wc)}</td><td class="n">—</td><td class="n">${cel(hist && !hist.curto ? hist.fundos.CDI.contribEs : null)}</td><td class="n">—</td><td class="n">0%</td></tr>`;
+    if (hist && !hist.curto) html += `<tr class="tot"><td>Carteira</td><td class="n">100%</td><td class="n">${cel(hist.somaIsolado)}<small style="color:var(--ink-3)"> (soma)</small></td><td class="n">${cel(hist.res[`${h}_${a0}`].es)}</td><td class="n">${par ? cel(par.res[`${h}_${a0}`].var) : '—'}</td><td class="n">100%</td></tr>`;
+    document.querySelector('#rc-tab tbody').innerHTML = html;
+    // fatores
+    const rf = document.getElementById('rf-contrib');
+    if (par) {
+      const ks = [...FAT, 'residual'], mx = Math.max(0.0001, ...ks.map(k => Math.abs(par.fracF[k] || 0)));
+      rf.innerHTML = ks.map(k => { const v = par.fracF[k] || 0, wdt = Math.abs(v) / mx * 100; return `<span class="fk"><i class="dot" style="background:${k === 'residual' ? 'var(--ink-3)' : FCOR[k]}"></i>${k === 'residual' ? 'Residual' : FNOME[k]}</span><div class="bar-t"><i style="left:0;width:${wdt}%;background:${k === 'residual' ? 'var(--ink-3)' : FCOR[k]}"></i></div><span class="bar-v">${pct0.format(v)}</span>`; }).join('');
+    } else rf.innerHTML = '';
+    // KPI
+    const k4 = document.getElementById('k4');
+    document.getElementById('k4t').textContent = `VaR ${Math.round(a0 * 100)}% · ${h} pregões`;
+    if (hist && !hist.curto) { k4.textContent = pct.format(-hist.res[`${h}_${a0}`].var); k4.className = 'kpi-v dn'; document.getElementById('k4s').textContent = `histórico · ES ${pct.format(-hist.res[`${h}_${a0}`].es)}` + (par ? ` · paramétrico ${pct.format(-par.res[`${h}_${a0}`].var)}` : ''); }
+    else if (par) { k4.textContent = pct.format(-par.res[`${h}_${a0}`].var); k4.className = 'kpi-v dn'; document.getElementById('k4s').textContent = `paramétrico · ES ${pct.format(-par.res[`${h}_${a0}`].es)}`; }
+    else { k4.textContent = '—'; k4.className = 'kpi-v'; document.getElementById('k4s').textContent = 'monte uma carteira'; }
+  }
+
   // ---------------------------------------------------------------- universo
   const COLS = [
     ['nome', 'Fundo', f => f.nome, false], ['grupo', 'Grupo', f => f.grupo, false],
@@ -556,6 +714,7 @@ footer { padding: 0 28px 28px; color: var(--ink-3); font-size: 12px; max-width: 
     if (!selecionado) selecionado = hist ? hist.c.id : D.cenarios[0].id;
     renderDetalhe();
     renderCustom();
+    renderRisco();
   }
 
   // ---------------------------------------------------------------- init
